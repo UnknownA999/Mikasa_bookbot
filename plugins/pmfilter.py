@@ -36,7 +36,43 @@ BUTTONS0 = {}
 BUTTONS1 = {}
 BUTTONS2 = {}
 SPELL_CHECK = {}
+async def fetch_database_options(chat_id, search_query):
+    """
+    Fetches up to 200 files for the query and analyzes them to find 
+    available Seasons, Qualities, and Languages.
+    """
+    # Fetch results (limit 200 to ensure we catch all variations)
+    files, _, _ = await get_search_results(chat_id, search_query, max_results=200, filter=True)
+    
+    available = {
+        "qualities": set(),
+        "languages": set(),
+        "seasons": set()
+    }
+    
+    if not files:
+        return available
 
+    for file in files:
+        name = file.file_name.lower()
+        
+        # Check Qualities
+        for quality in QUALITIES:
+            if quality.lower() in name:
+                available["qualities"].add(quality)
+        
+        # Check Languages
+        for disp_name, code in LANGUAGES.items():
+            if code.lower() in name:
+                available["languages"].add(disp_name)
+        
+        # Check Seasons (Regex to find S01, Season 1, etc.)
+        season_match = re.search(r'\b(?:s|season)\s?0*(\d+)\b', name)
+        if season_match:
+            available["seasons"].add(int(season_match.group(1)))
+            
+    return available
+    
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
@@ -383,37 +419,42 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
             return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\n"
-                f"ᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...",
+                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ!",
                 show_alert=True,
             )
     except:
         pass
 
     _, key = query.data.split("#")
-    search = FRESH.get(key)
-    search = search.replace(' ', '_')
+    search = FRESH.get(key).replace('_', ' ')
+
+    # -- DYNAMIC LOGIC START --
+    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
+    options = await fetch_database_options(query.message.chat.id, search)
+    available_qualities = list(options["qualities"])
+    
+    # Sort qualities based on the order defined in info.py (Low to High)
+    available_qualities.sort(key=lambda x: QUALITIES.index(x) if x in QUALITIES else 99)
+    # -- DYNAMIC LOGIC END --
 
     btn = []
-    for i in range(0, len(QUALITIES), 2):
-        q1 = QUALITIES[i]
-        row = [InlineKeyboardButton(
-            text=q1, callback_data=f"fq#{q1.lower()}#{key}")]
-        if i + 1 < len(QUALITIES):
-            q2 = QUALITIES[i + 1]
-            row.append(InlineKeyboardButton(
-                text=q2, callback_data=f"fq#{q2.lower()}#{key}"))
+    if not available_qualities:
+        # Fallback if regex fails but files exist
+        available_qualities = QUALITIES
+
+    for i in range(0, len(available_qualities), 2):
+        q1 = available_qualities[i]
+        row = [InlineKeyboardButton(text=q1, callback_data=f"fq#{q1.lower()}#{key}")]
+        if i + 1 < len(available_qualities):
+            q2 = available_qualities[i + 1]
+            row.append(InlineKeyboardButton(text=q2, callback_data=f"fq#{q2.lower()}#{key}"))
         btn.append(row)
 
-    btn.insert(0, [
-        InlineKeyboardButton(text="⇊ ꜱᴇʟᴇᴄᴛ ǫᴜᴀʟɪᴛʏ ⇊", callback_data="ident")
-    ])
-    btn.append([
-        InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭",
-                             callback_data=f"fq#homepage#{key}")
-    ])
+    btn.insert(0, [InlineKeyboardButton(text="⇊ ꜱᴇʟᴇᴄᴛ ǫᴜᴀʟɪᴛʏ ⇊", callback_data="ident")])
+    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"fq#homepage#{key}")])
 
     await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
+    
 
 
 @Client.on_callback_query(filters.regex(r"^fq#"))
@@ -543,36 +584,49 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
             return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\n"
-                f"ᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...",
+                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ!",
                 show_alert=True,
             )
     except:
         pass
 
     _, key = query.data.split("#")
-    search = FRESH.get(key)
-    search = search.replace(' ', '_')
+    search = FRESH.get(key).replace('_', ' ')
 
-    items = list(LANGUAGES.items())
+    # -- DYNAMIC LOGIC START --
+    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
+    options = await fetch_database_options(query.message.chat.id, search)
+    available_langs = sorted(list(options["languages"]))
+    # -- DYNAMIC LOGIC END --
+
     btn = []
+    if not available_langs:
+         # Fallback: Show all languages if detection fails
+        items = list(LANGUAGES.items())
+        for i in range(0, len(items), 2):
+            name1, code1 = items[i]
+            row = [InlineKeyboardButton(text=name1, callback_data=f"fl#{code1}#{key}")]
+            if i + 1 < len(items):
+                name2, code2 = items[i + 1]
+                row.append(InlineKeyboardButton(text=name2, callback_data=f"fl#{code2}#{key}"))
+            btn.append(row)
+    else:
+        # Show only available languages
+        for i in range(0, len(available_langs), 2):
+            lang1 = available_langs[i]
+            code1 = LANGUAGES.get(lang1)
+            row = [InlineKeyboardButton(text=lang1, callback_data=f"fl#{code1}#{key}")]
+            if i + 1 < len(available_langs):
+                lang2 = available_langs[i + 1]
+                code2 = LANGUAGES.get(lang2)
+                row.append(InlineKeyboardButton(text=lang2, callback_data=f"fl#{code2}#{key}"))
+            btn.append(row)
 
-    for i in range(0, len(items), 2):
-        name1, code1 = items[i]
-        row = [InlineKeyboardButton(
-            text=name1, callback_data=f"fl#{code1}#{key}")]
-        if i + 1 < len(items):
-            name2, code2 = items[i + 1]
-            row.append(InlineKeyboardButton(
-                text=name2, callback_data=f"fl#{code2}#{key}"))
-        btn.append(row)
-
-    btn.insert(0, [InlineKeyboardButton(
-        text="⇊ ꜱᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ ⇊", callback_data="ident")])
-    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭",
-               callback_data=f"fl#homepage#{key}")])
+    btn.insert(0, [InlineKeyboardButton(text="⇊ ꜱᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ ⇊", callback_data="ident")])
+    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"fl#homepage#{key}")])
 
     await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
+            
 
 
 @Client.on_callback_query(filters.regex(r"^fl#"))
@@ -696,32 +750,51 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
             return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ…",
+                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ!",
                 show_alert=True,
             )
-    except Exception:
+    except:
         pass
-    _, key = query.data.split("#")
-    search = FRESH.get(key).replace(" ", "_")
-    req = query.from_user.id
-    offset = 0
-    btn: list[list[InlineKeyboardButton]] = []
-    for i in range(0, len(SEASONS) - 1, 2):
-        btn.append([
-            InlineKeyboardButton(
-                f"Sᴇᴀꜱᴏɴ {SEASONS[i][1:]}", callback_data=f"fs#{SEASONS[i].lower()}#{key}"),
-            InlineKeyboardButton(
-                f"Sᴇᴀꜱᴏɴ {SEASONS[i+1][1:]}", callback_data=f"fs#{SEASONS[i+1].lower()}#{key}")
-        ])
 
-    btn.insert(
-        0,
-        [InlineKeyboardButton("⇊ ꜱᴇʟᴇᴄᴛ ꜱᴇᴀꜱᴏɴ ⇊", callback_data="ident")],
-    )
-    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ​↭",
-               callback_data=f"next_{req}_{key}_{offset}")])
+    _, key = query.data.split("#")
+    search = FRESH.get(key).replace('_', ' ')
+
+    # -- DYNAMIC LOGIC START --
+    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
+    options = await fetch_database_options(query.message.chat.id, search)
+    # Sort seasons numerically (1, 2, 10 instead of 1, 10, 2)
+    available_seasons = sorted(list(options["seasons"]))
+    # -- DYNAMIC LOGIC END --
+
+    btn = []
+    if not available_seasons:
+        # If no specific "S01" pattern is found, we can't display season buttons safely.
+        # Fallback to standard list if you want, or just show a message.
+        # Here we try to show standard list up to 5 as a backup
+        available_seasons = [i for i in range(1, 6)]
+
+    # Generate Buttons for Available Seasons
+    for i in range(0, len(available_seasons), 3): # 3 buttons per row looks better for numbers
+        row = []
+        s1 = available_seasons[i]
+        row.append(InlineKeyboardButton(f"Sᴇᴀꜱᴏɴ {s1}", callback_data=f"fs#S{str(s1).zfill(2)}#{key}"))
+        
+        if i + 1 < len(available_seasons):
+            s2 = available_seasons[i + 1]
+            row.append(InlineKeyboardButton(f"Sᴇᴀꜱᴏɴ {s2}", callback_data=f"fs#S{str(s2).zfill(2)}#{key}"))
+            
+        if i + 2 < len(available_seasons):
+            s3 = available_seasons[i + 2]
+            row.append(InlineKeyboardButton(f"Sᴇᴀꜱᴏɴ {s3}", callback_data=f"fs#S{str(s3).zfill(2)}#{key}"))
+            
+        btn.append(row)
+
+    btn.insert(0, [InlineKeyboardButton("⇊ ꜱᴇʟᴇᴄᴛ ꜱᴇᴀꜱᴏɴ ⇊", callback_data="ident")])
+    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"next_{query.from_user.id}_{key}_0")])
+
     await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
     await query.answer()
+
 
 
 @Client.on_callback_query(filters.regex(r"^fs#"))
