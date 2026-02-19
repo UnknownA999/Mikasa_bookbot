@@ -35,7 +35,7 @@ PICS = (environ.get('PICS', 'https://i.ibb.co/TqHVHxMR/a61a3edd0146170e7f07e3246
 NOR_IMG = environ.get("NOR_IMG", "https://graph.org/file/e20b5fdaf217252964202.jpg")
 MELCOW_PHOTO = environ.get("MELCOW_PHOTO", "https://i.ibb.co/LdK4vk6p/10dfe34514273608a93284ab85e6cad9.jpg")
 SPELL_IMG = environ.get("SPELL_IMG", "https://graph.org/file/13702ae26fb05df52667c.jpg")
-SUBSCRIPTION = (environ.get('SUBSCRIPTION', 'https://i.ibb.co/svsNj4wH/IMG-20260218-112422-741.jpg'))
+SUBSCRIPTION = (environ.get('SUBSCRIPTION', 'https://i.ibb.co/PvbbCGBJ/20260217-180408.jpg'))
 FSUB_PICS = (environ.get('FSUB_PICS', 'https://i.ibb.co/1tNVFkRX/1771451505647.png https://i.ibb.co/1tNVFkRX/1771451505647.png')).split()  # Fsub pic
 
 # ============================
@@ -59,7 +59,7 @@ auth_channels     = environ.get("AUTH_CHANNELS", "-100")# Channels for force sub
 # ============================
 # Payment Configuration
 # ============================
-QR_CODE = environ.get('QR_CODE', 'Your_Qr_Code')    # QR code image for payments
+QR_CODE = environ.get('QR_CODE', 'https://i.ibb.co/21kg9wRK/1771333820919.png')    # QR code image for payments
 OWNER_UPI_ID = environ.get('OWNER_UPI_ID', 'angrajanuj@oksbi')    # Owner UPI ID for payments
 
 STAR_PREMIUM_PLANS = {
@@ -174,7 +174,7 @@ SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(
 LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}
 QUALITIES = ["360P", "480P", "720P", "1080P", "1440P", "2160P", "4K"]
 
-SEASON_COUNT = 12
+SEASON_COUNT = 100
 SEASONS = [f"S{str(i).zfill(2)}" for i in range(1, SEASON_COUNT + 1)]
 
 BAD_WORDS = {
