@@ -89,10 +89,15 @@ async def check_db_size(db):
 async def save_file(media):
     """Save file in database, with detailed logging."""
     file_id, file_ref = unpack_new_file_id(media.file_id)
+    
+    if not file_id or file_id is None or file_id == "None":
+        logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
+        return False, 2 
+
     file_name = re.sub(
         r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(media.file_name)
     )
-    file_name = re.sub(r"\s+", " ", file_name).strip()
+
     saveMedia = Media
     target_db = "Primary"
     if MULTIPLE_DB:
