@@ -170,9 +170,22 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
 
     # This is the new "middle-ground" regex logic for speed and flexibility
     if isinstance(query, list):
-        # This part handles season searches etc., where you need to match any of the full phrases.
-        raw_pattern = '|'.join(re.escape(q.strip()) for q in query if q.strip())
+        # --- SMART LIST MATCHING FIX ---
+        raw_patterns = []
+        for q in query:
+            q = q.strip()
+            if q:
+                if ' ' in q:
+                    # Inserts wildcards between words so it ignores text in the middle
+                    words = [re.escape(word) for word in q.split()]
+                    raw_patterns.append(r'.*'.join(words))
+                else:
+                    raw_patterns.append(re.escape(q))
+        
+        raw_pattern = '|'.join(raw_patterns)
         regex_list = [re.compile(raw_pattern, re.IGNORECASE)] if raw_pattern else []
+        # -------------------------------
+        
         
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": ([{"file_name": r} for r in regex_list] + [{"caption": r} for r in regex_list])}
