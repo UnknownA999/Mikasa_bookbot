@@ -398,7 +398,7 @@ sʜᴏᴡɴ ɪɴ : {remaining_seconds} <i>sᴇᴄ</i>⚡️
 
 ‼️ ᴍᴜsᴛ sᴇɴᴅ sᴄʀᴇᴇɴsʜᴏᴛ ᴀғᴛᴇʀ ᴘᴀʏᴍᴇɴᴛ.</b>"""
 
-    SOURCE_TXT ="""<b>ՏOᑌᖇᑕᗴ ᑕOᗪᗴ : 👇 </b>
+    SOURCE_TXT ="""<b>ՏᑌᑭᑭOᖇT ᑌՏ : 🙂‍↕️ </b>
 
 This Is A Scout Regiment Project. We hope our bot is helping you alot.\n
 ꜱᴜᴘᴘᴏʀᴛ ᴜs ◉› :<a href={}>Mikasa</a>\n """
