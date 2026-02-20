@@ -464,7 +464,8 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
         pass
 
     _, key = query.data.split("#")
-    search = FRESH.get(key).replace('_', ' ')
+    search = (BUTTONS.get(key) or FRESH.get(key)).replace('_', ' ')
+
 
     # -- DYNAMIC LOGIC START --
     await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
@@ -499,13 +500,23 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
 async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     _, qual, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
+    
+    # Use stacked filters instead of resetting
+    search = BUTTONS.get(key) or FRESH.get(key)
     search = search.replace("_", " ")
-    baal = qual in search
-    if baal:
-        search = search.replace(qual, "")
+    
+    if qual == "homepage":
+        pass
+    elif qual in search:
+        # Removes the quality if you click it again (Toggles OFF)
+        search = search.replace(qual, "").strip()
+        search = re.sub(r"\s+", " ", search)
     else:
-        search = search
+        # Adds the new quality
+        search = f"{search} {qual}".strip()
+        
+    BUTTONS[key] = search
+    
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
@@ -514,9 +525,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
             return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...", show_alert=True,)
     except:
         pass
-    if qual != "homepage":
-        search = f"{search} {qual}"
-    BUTTONS[key] = search
+        
     files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
     if not files:
         await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
@@ -671,13 +680,23 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
+    
+    # Use stacked filters instead of resetting
+    search = BUTTONS.get(key) or FRESH.get(key)
     search = search.replace("_", " ")
-    baal = lang in search
-    if baal:
-        search = search.replace(lang, "")
+    
+    if lang == "homepage":
+        pass
+    elif lang in search:
+        # Removes the language if you click it again (Toggles OFF)
+        search = search.replace(lang, "").strip()
+        search = re.sub(r"\s+", " ", search)
     else:
-        search = search
+        # Adds the new language
+        search = f"{search} {lang}".strip()
+        
+    BUTTONS[key] = search
+    
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
@@ -686,9 +705,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
             return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...", show_alert=True,)
     except:
         pass
-    if lang != "homepage":
-        search = f"{search} {lang}"
-    BUTTONS[key] = search
+
     files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
     if not files:
         await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
@@ -838,17 +855,26 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
 @Client.on_callback_query(filters.regex(r"^fs#"))
 async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     _, season_tag, key = query.data.split("#")
-    search = FRESH.get(key).replace("_", " ")
+    
+    # Use stacked filters instead of resetting
+    search = BUTTONS.get(key) or FRESH.get(key)
+    search = search.replace("_", " ")
     season_tag = season_tag.lower()
+    
     if season_tag == "homepage":
         search_final = search
         query_input = search_final
     else:
+        # Remove any existing season pattern (like S01, S02) safely so we can swap seasons
+        search = re.sub(r'\bs\d{1,2}\b', '', search, flags=re.IGNORECASE).strip()
+        search = re.sub(r"\s+", " ", search)
+        
         season_number = int(season_tag[1:])
         query_input = generate_season_variations(search, season_number)
-        search_final = query_input[0] if query_input else search
+        search_final = query_input[0] if query_input else f"{search} {season_tag}"
 
     BUTTONS[key] = search_final
+
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
             return await query.answer("⚠️ Not your request", show_alert=True)
