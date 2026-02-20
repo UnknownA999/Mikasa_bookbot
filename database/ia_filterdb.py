@@ -170,22 +170,20 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
 
     # This is the new "middle-ground" regex logic for speed and flexibility
     if isinstance(query, list):
-        # --- SMART LIST MATCHING FIX ---
         raw_patterns = []
         for q in query:
             q = q.strip()
             if q:
                 if ' ' in q:
-                    # Inserts wildcards between words so it ignores text in the middle
+                    # Order-Independent: Matches if ALL words exist in the filename, in ANY order
                     words = [re.escape(word) for word in q.split()]
-                    raw_patterns.append(r'.*'.join(words))
+                    pattern = "^" + "".join([f"(?=.*{w})" for w in words])
+                    raw_patterns.append(pattern)
                 else:
                     raw_patterns.append(re.escape(q))
         
         raw_pattern = '|'.join(raw_patterns)
         regex_list = [re.compile(raw_pattern, re.IGNORECASE)] if raw_pattern else []
-        # -------------------------------
-        
         
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": ([{"file_name": r} for r in regex_list] + [{"caption": r} for r in regex_list])}
@@ -196,19 +194,18 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
         if not query:
             return [], None, 0
             
-        # This is the key change for balancing speed and flexibility
         if ' ' in query:
-            # For multi-word queries, allow spaces, dots, or hyphens between words.
+            # Order-Independent: Matches if ALL words exist in the filename, in ANY order
             words = [re.escape(word) for word in query.split()]
-            raw_pattern = r'.*'.join(words)
+            raw_pattern = "^" + "".join([f"(?=.*{w})" for w in words])
         else:
-            # For single-word queries, use a flexible substring search.
             raw_pattern = re.escape(query)
 
         try:
             regex = re.compile(raw_pattern, flags=re.IGNORECASE)
         except re.error:
             return [], None, 0
+
 
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": [{"file_name": regex}, {"caption": regex}]}
