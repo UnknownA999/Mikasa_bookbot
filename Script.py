@@ -224,7 +224,7 @@ Nᴀᴍᴇ : {}
 
 Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
     
-    CAPTION = """<b><a href="https://t.me/anime_hindimein">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/scout_regimant">[ Scout Regiment ]</a></b>"""
+    CAPTION = """<b><a href="https://t.me/updates_op">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/scout_regimant">[ Scout Regiment ]</a></b>"""
 
     
     MOVIE_UPDATE_NOTIFY_TXT = """
@@ -402,7 +402,7 @@ sʜᴏᴡɴ ɪɴ : {remaining_seconds} <i>sᴇᴄ</i>⚡️
 
 Help us keep Mikasa fast and online 24/7! 
 
-Running massive databases and premium servers to bring you unlimited anime and movies costs money. 100% of your donations go directly toward server maintenance and keeping the bot running flawlessly. \n
+Running massive databases and premium servers to bring you unlimited content costs money. 100% of your donations go directly toward server maintenance and keeping the bot running flawlessly. \n
 Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 
     SETTING_TXT = """    
