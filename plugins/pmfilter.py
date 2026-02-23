@@ -77,6 +77,11 @@ async def fetch_database_options(chat_id, search_query):
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
+    # ADD THIS CHECK HERE
+    if message.chat.id == -1003723654216 and message.message_thread_id == 58:
+        return 
+
+    # The rest of your code remains exactly the same...
     if EMOJI_MODE:
         try:
             await message.react(emoji=random.choice(REACTIONS), big=True)
