@@ -14,6 +14,22 @@ async def contribute_file(client, message):
     user_id = message.from_user.id
     current_time = time.time()
     
+    # --- START OF EDIT: ADMIN INDEXING BYPASS ---
+    if user_id in ADMINS:
+        if message.forward_from_chat:
+            # This detects if you forwarded from your database channel
+            return await message.reply_text(
+                f"<b>Hello Admin!</b>\n\nDetected forward from <code>{message.forward_from_chat.title}</code>.\nDo you want to index all files from the last saved ID up to this message?",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📁 Index Channel", callback_data=f"index_all_{message.forward_from_chat.id}_{message.id}")],
+                    [InlineKeyboardButton("✖️ Skip & Close", callback_data="close_data")]
+                ])
+            )
+    # --- END OF EDIT ---
+
+    # 1. Cooldown Check (The rest of your code continues here...)
+    last_time = upload_cooldown.get(user_id, 0)
+    
     # 1. Cooldown Check
     last_time = upload_cooldown.get(user_id, 0)
     if current_time - last_time < 30:
