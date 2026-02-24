@@ -171,11 +171,12 @@ AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pa
 AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.match(ch)]
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
-LANGUAGES = {"ᴍᴀʟᴀʏᴀʟᴀᴍ":"mal","ᴛᴀᴍɪʟ":"tam","ᴇɴɢʟɪsʜ":"eng","ʜɪɴᴅɪ":"hin","ᴛᴇʟᴜɢᴜ":"tel","ᴋᴀɴɴᴀᴅᴀ":"kan","ɢᴜᴊᴀʀᴀᴛɪ":"guj","ᴍᴀʀᴀᴛʜɪ":"mar","ᴘᴜɴᴊᴀʙɪ":"pun"}
-QUALITIES = ["360P", "480P", "720P", "1080P", "1440P", "2160P", "4K"]
+LANGUAGES = {"ᴇɴɢʟɪsʜ": "eng", "ʜɪɴᴅɪ": "hin", "ᴀʀᴀʙɪᴄ": "ara", "ʀᴜssɪᴀɴ": "rus", "ғʀᴇɴᴄʜ": "fre", "ᴊᴀᴘᴀɴᴇsᴇ": "jpn", "sᴘᴀɴɪsʜ": "spa", "ɢᴇʀᴍᴀɴ": "ger", "ᴋᴏʀᴇᴀɴ": "kor"}
+QUALITIES = ["PDF", "EPUB", "MOBI", "CBZ", "ZIP"]
 
-SEASON_COUNT = 100
-SEASONS = [f"S{str(i).zfill(2)}" for i in range(1, SEASON_COUNT + 1)]
+
+SEASON_COUNT = 150 
+SEASONS = [f"Vol {i}" for i in range(1, SEASON_COUNT + 1)]
 
 BAD_WORDS = {
     "PrivateMovieZ",
