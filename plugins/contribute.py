@@ -2,8 +2,8 @@ import time
 import re
 import os
 from pyrogram import Client, filters, enums
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton # Added this
-from info import BIN_CHANNEL, ADMINS # Added ADMINS here
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from info import BIN_CHANNEL, ADMINS
 from database.users_chats_db import db
 from Script import script
 
