@@ -1915,7 +1915,10 @@ async def auto_filter(client, msg, spoll=False):
                 find = search.split(" ")
                 search = ""
                 removes = ["in", "upload", "series", "full",
-                           "horror", "thriller", "mystery", "print", "file"]
+                           "horror", "thriller", "mystery", "print", "file",
+                           "1080p", "720p", "480p", "2160p", "4k", "hdrip",
+                           "webrip", "web-dl", "bluray", "mkv", "mp4", "avi",
+                           "x264", "x265", "hevc", "esubs", "hc", "org", "nf"]
                 for x in find:
                     if x in removes:
                         continue
