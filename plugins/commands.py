@@ -1429,3 +1429,46 @@ async def smart_clean_duplicates(bot, message):
         await msg.edit(f"❌ **Error during cleanup:** `{e}`")
         logger.error(f"Smart Clean Error: {e}")
         
+@Client.on_message(filters.command("scrape") & filters.user(ADMINS))
+async def batch_scrape(client, message):
+    # Check if the command has the right arguments
+    if len(message.command) < 2:
+        return await message.reply_text("<b>⚠️ Use format:</b> `/scrape [channel_id] [limit]`\nExample: `/scrape -100123456789 100`")
+    
+    try:
+        channel_id = int(message.command[1])
+        # Default to 100 messages if no limit is provided
+        limit = int(message.command[2]) if len(message.command) > 2 else 100
+    except ValueError:
+        return await message.reply_text("<b>❌ Error:</b> Channel ID and Limit must be numbers.")
+    
+    msg = await message.reply_text(f"⏳ <b>Scraping started...</b> Fetching last {limit} messages from <code>{channel_id}</code>.")
+    
+    saved_count = 0
+    skipped_count = 0
+    
+    try:
+        # Loop through the chat history of the target channel
+        async for target_msg in client.get_chat_history(channel_id, limit=limit):
+            # Look for Documents, Videos, or Audio files
+            media = target_msg.document or target_msg.video or target_msg.audio
+            
+            if media:
+                # Attach the message caption to the media object for our fallback logic in ia_filterdb.py
+                media.caption = target_msg.caption if target_msg.caption else None
+                
+                # Send it to the database
+                is_saved, _ = await save_file(media)
+                if is_saved:
+                    saved_count += 1
+                else:
+                    skipped_count += 1
+                    
+    except ChatAdminRequired:
+        return await msg.edit("❌ <b>Error:</b> Mikasa must be an Admin in that channel to scrape its history!")
+    except Exception as e:
+        return await msg.edit(f"❌ <b>Error:</b> `{e}`")
+        
+    # Final Report
+    await msg.edit(f"✅ <b>Scraping Complete for {channel_id}!</b>\n\n📥 <b>Saved to DB:</b> `{saved_count}`\n⏭ <b>Skipped (Duplicates):</b> `{skipped_count}`")
+    
