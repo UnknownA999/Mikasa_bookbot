@@ -15,7 +15,7 @@ from database.config_db import mdb
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
-from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files
+from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files, save_file
 from database.users_chats_db import db
 from info import *
 from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, log_error, clean_filename
@@ -1431,44 +1431,65 @@ async def smart_clean_duplicates(bot, message):
         
 @Client.on_message(filters.command("scrape") & filters.user(ADMINS))
 async def batch_scrape(client, message):
-    # Check if the command has the right arguments
     if len(message.command) < 2:
-        return await message.reply_text("<b>⚠️ Use format:</b> `/scrape [channel_id] [limit]`\nExample: `/scrape -100123456789 100`")
+        return await message.reply_text("<b>⚠️ Use format:</b> `/scrape [channel_id] [limit]`\nExample for 50 msgs: `/scrape -100123456789 50`\nExample for ALL msgs: `/scrape -100123456789 0`")
     
     try:
         channel_id = int(message.command[1])
-        # Default to 100 messages if no limit is provided
-        limit = int(message.command[2]) if len(message.command) > 2 else 100
+        limit = int(message.command[2]) if len(message.command) > 2 else 0 # 0 means ALL
     except ValueError:
         return await message.reply_text("<b>❌ Error:</b> Channel ID and Limit must be numbers.")
     
-    msg = await message.reply_text(f"⏳ <b>Scraping started...</b> Fetching last {limit} messages from <code>{channel_id}</code>.")
+    msg = await message.reply_text(f"⏳ <b>Scraping started...</b> Fetching messages from <code>{channel_id}</code>.\n⚠️ <i>Running in safe-mode to prevent Telegram bans. This might take a while.</i>")
     
     saved_count = 0
     skipped_count = 0
     
     try:
-        # Loop through the chat history of the target channel
+        # Loop through chat history
         async for target_msg in client.get_chat_history(channel_id, limit=limit):
-            # Look for Documents, Videos, or Audio files
             media = target_msg.document or target_msg.video or target_msg.audio
             
             if media:
-                # Attach the message caption to the media object for our fallback logic in ia_filterdb.py
-                media.caption = target_msg.caption if target_msg.caption else None
+                custom_name = None
                 
-                # Send it to the database
-                is_saved, _ = await save_file(media)
+                # Smart Naming: If the file doesn't have a native name, let's find one
+                if not getattr(media, "file_name", None):
+                    if target_msg.caption:
+                        custom_name = target_msg.caption.split("\n")[0]
+                    else:
+                        # Look at the PREVIOUS message in the channel for the movie info
+                        try:
+                            prev_msg = await client.get_messages(channel_id, target_msg.id - 1)
+                            if prev_msg and prev_msg.text:
+                                custom_name = prev_msg.text.split("\n")[0]
+                            elif prev_msg and prev_msg.caption:
+                                custom_name = prev_msg.caption.split("\n")[0]
+                        except FloodWait as e:
+                            # If Telegram complains here, sleep it off
+                            await asyncio.sleep(e.value + 2)
+                        except Exception:
+                            pass 
+                
+                # Send it to the database with our smart name
+                is_saved, _ = await save_file(media, custom_name=custom_name)
+                
                 if is_saved:
                     saved_count += 1
                 else:
                     skipped_count += 1
                     
+            # --- ANTI-BAN DELAY ---
+            # Wait 0.5 seconds between scanning each message so Telegram doesn't block Mikasa
+            await asyncio.sleep(0.5)
+                    
+    except FloodWait as e:
+        await msg.edit(f"⏳ <b>Telegram Rate Limit hit!</b> Sleeping for {e.value} seconds to prevent ban...")
+        await asyncio.sleep(e.value + 2)
     except ChatAdminRequired:
-        return await msg.edit("❌ <b>Error:</b> Mikasa must be an Admin in that channel to scrape its history!")
+        return await msg.edit("❌ <b>Error:</b> Mikasa must be an Admin in that channel to scrape it!")
     except Exception as e:
         return await msg.edit(f"❌ <b>Error:</b> `{e}`")
         
-    # Final Report
-    await msg.edit(f"✅ <b>Scraping Complete for {channel_id}!</b>\n\n📥 <b>Saved to DB:</b> `{saved_count}`\n⏭ <b>Skipped (Duplicates):</b> `{skipped_count}`")
+    await msg.edit(f"✅ <b>Scraping Complete!</b>\n\n📥 <b>Saved & Named:</b> `{saved_count}`\n⏭ <b>Skipped (Duplicates):</b> `{skipped_count}`")
     
