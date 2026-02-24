@@ -420,6 +420,32 @@ class Database:
     async def update_movie_update_status(self, bot_id, enable):
         await self.update_bot_setting(bot_id, 'MOVIE_UPDATE_NOTIFICATION', enable)
      
+    # ⬇️ ⬇️ ⬇️ PASTE THESE 3 NEW FUNCTIONS HERE ⬇️ ⬇️ ⬇️
+
+    async def add_contribution(self, user_id):
+        """Safely adds 1 point to both lifetime and monthly counts."""
+        await self.users.update_one(
+            {"id": user_id}, 
+            {"$inc": {"contributions": 1, "monthly_contributions": 1}}, 
+            upsert=True
+        )
+
+    async def get_top_contributors(self, limit=10):
+        """Fetch the top 10 all-time contributors."""
+        cursor = self.users.find({"contributions": {"$exists": True}}).sort("contributions", -1).limit(limit)
+        return await cursor.to_list(length=limit)
+
+    async def get_top_monthly_contributors(self, limit=10):
+        """Fetch the top 10 monthly contributors."""
+        cursor = self.users.find({"monthly_contributions": {"$exists": True, "$gt": 0}}).sort("monthly_contributions", -1).limit(limit)
+        return await cursor.to_list(length=limit)
+
+    # ⬆️ ⬆️ ⬆️ END OF NEW FUNCTIONS ⬆️ ⬆️ ⬆️
+
+db = Database(DATABASE_URI, DATABASE_NAME)    
+db2 = Database(DATABASE_URI2, DATABASE_NAME)
+
+     
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
 
