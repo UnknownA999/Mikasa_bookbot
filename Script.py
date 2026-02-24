@@ -524,5 +524,22 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 • /details - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ."""    
 
 
+    CONTRIBUTION_TUTORIAL = """<b>📤 ʜᴏᴡ ᴛᴏ ᴄᴏɴᴛʀɪʙᴜᴛᴇ ᴛᴏ ᴛʜᴇ ʟɪʙʀᴀʀʏ</b>
+
+ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ꜱʜᴀʀɪɴɢ ᴋɴᴏᴡʟᴇᴅɢᴇ! ᴛᴏ ᴇɴꜱᴜʀᴇ ʏᴏᴜʀ ʙᴏᴏᴋ ɪꜱ ᴇᴀꜱʏ ᴛᴏ ꜰɪɴᴅ, ᴘʟᴇᴀꜱᴇ ꜰᴏʟʟᴏᴡ ᴛʜɪꜱ ꜰᴏʀᴍᴀᴛ:
+
+❶ <b>ʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ꜰɪʟᴇ:</b>
+<code>Title by Author [Language] Vol XX</code>
+
+❷ <b>ᴇxᴀᴍᴘʟᴇꜱ:</b>
+• <code>Atomic Habits by James Clear [English]</code>
+• <code>Harry Potter by JK Rowling [Hindi] Vol 01</code>
+
+❸ <b>ꜱᴇɴᴅ ᴛʜᴇ ꜰɪʟᴇ:</b>
+ᴊᴜꜱᴛ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ ʀᴇɴᴀᴍᴇᴅ ᴘᴅꜰ/ᴇᴘᴜʙ ᴅɪʀᴇᴄᴛʟʏ ᴛᴏ ᴛʜɪꜱ ᴄʜᴀᴛ ᴛᴏ ᴇᴀʀɴ ᴘᴏɪɴᴛꜱ!
+
+⚠️ <b>ɴᴏᴛᴇ:</b> 
+• 𝟹𝟶-ꜱᴇᴄᴏɴᴅ ᴄᴏᴏʟᴅᴏᴡɴ ʙᴇᴛᴡᴇᴇɴ ᴜᴘʟᴏᴀᴅꜱ.
+• ꜰɪʟᴇꜱ ᴡɪᴛʜ ᴡʀᴏɴɢ ɴᴀᴍᴇꜱ ᴡɪʟʟ ʙᴇ ʀᴇᴊᴇᴄᴛᴇᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ!"""
 
     
