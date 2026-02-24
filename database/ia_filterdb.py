@@ -85,28 +85,25 @@ async def check_db_size(db):
         print(f"Error Checking Database Size: {e}")
         return 0
 
-
-async def save_file(media):
-    """Save file in database, with detailed logging."""
+# 1. Add "custom_name=None" inside the parentheses
+async def save_file(media, custom_name=None):
     file_id, file_ref = unpack_new_file_id(media.file_id)
     
     if not file_id or file_id is None or file_id == "None":
-        logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
+        logger.error(f"[REJECTED] Null file_id. Skipping save.")
         return False, 2 
 
-    # 1. Fallback Logic: If there is no file_name, try to use the caption, or use a default tag.
-    raw_name = getattr(media, "file_name", None)
+    # 2. Add our smart naming logic here
+    raw_name = custom_name or getattr(media, "file_name", None) or getattr(media, "caption", "Scraped_Video")
     if not raw_name:
-        # If it's just a raw video, grab the caption or name it "Scraped_Video"
-        raw_name = getattr(media, "caption", "Scraped_Video")
-        # If there's no caption either, force a default name
-        if not raw_name:
-            raw_name = "Scraped_Video"
+        raw_name = "Scraped_Video"
 
-    # 2. Clean the name
     file_name = re.sub(
         r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(raw_name)
     ).strip()
+    
+    # ... Leave the rest of the Duplicate Check logic below this exactly as it is! ...
+
 
     # --- SMART DUPLICATE CHECK ---
     search_query = {
