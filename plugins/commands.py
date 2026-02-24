@@ -1423,7 +1423,7 @@ async def smart_clean_duplicates(bot, message):
                 result = await Media2.collection.delete_many({"_id": {"$in": ids_to_delete}})
                 deleted_count += result.deleted_count
                 
-        await msg.edit(f"✅ **Smart Cleanup Complete!**\n🗑️ Removed `{deleted_count}` exact duplicate entries.\n\n*(Episodes with the same name but different sizes were ignored!)*")
+        await msg.edit(f"✅ **Smart Cleanup Complete!**\n🗑️ Removed `{deleted_count}` exact duplicate entries.\n\n*(Books with the same name but different sizes were ignored!)*")
         
     except Exception as e:
         await msg.edit(f"❌ **Error during cleanup:** `{e}`")
@@ -1492,4 +1492,45 @@ async def batch_scrape(client, message):
         return await msg.edit(f"❌ <b>Error:</b> `{e}`")
         
     await msg.edit(f"✅ <b>Scraping Complete!</b>\n\n📥 <b>Saved & Named:</b> `{saved_count}`\n⏭ <b>Skipped (Duplicates):</b> `{skipped_count}`")
+    
+@Client.on_message(filters.command("my_profile") & filters.private)
+async def my_profile(client, message):
+    user_id = message.from_user.id
+    user_data = await db.get_user(user_id) 
+    
+    lifetime_count = user_data.get('contributions', 0) if user_data else 0
+    monthly_count = user_data.get('monthly_contributions', 0) if user_data else 0
+    
+    def get_badge(count):
+        if count >= 100: return "🏆 Grand Librarian"
+        if count >= 50: return "🥈 Sage of Knowledge"
+        if count >= 20: return "🥉 Master Archivist"
+        if count >= 5: return "🎖️ Senior Contributor"
+        return "👤 Aspiring Scholar"
+
+    text = (
+        f"<b>📊 ʏᴏᴜʀ ʟɪʙʀᴀʀʏ ᴘʀᴏꜰɪʟᴇ</b>\n\n"
+        f"👤 <b>ɴᴀᴍᴇ:</b> {message.from_user.mention}\n"
+        f"<b>▬▬ 📅 THIS MONTH ▬▬</b>\n"
+        f"📚 Books Added: <b>{monthly_count}</b>\n"
+        f"🎖️ Current Rank: <b>{get_badge(monthly_count)}</b>\n\n"
+        f"<b>▬▬ 🌟 ALL-TIME LEGACY ▬▬</b>\n"
+        f"📚 Total Added: <b>{lifetime_count}</b>\n"
+        f"🎖️ Lifetime Rank: <b>{get_badge(lifetime_count)}</b>\n"
+    )
+    await message.reply_text(text)
+
+
+@Client.on_message(filters.command("top_contributors"))
+async def show_leaderboard(client, message):
+    top_users = await db.get_top_monthly_contributors(10) 
+    text = "<b>📅 THIS MONTH'S CHAMPIONS 📅</b>\n\n"
+    
+    if not top_users:
+        text += "<i>No contributions this month yet. Be the first!</i>"
+    else:
+        for i, user in enumerate(top_users, 1):
+            text += f"{i}. {user.get('name', 'User')} — {user.get('monthly_contributions', 0)} Books\n"
+    
+    await message.reply_text(text)
     
