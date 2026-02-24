@@ -1591,7 +1591,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     elif query.data == "sinfo":
         await query.answer(text=script.SINFO, show_alert=True)
 
-    elif query.data == "start":
+    elif query.data == "contrib_tut":
         buttons = [[InlineKeyboardButton('⇍ ʙᴀᴄᴋ', callback_data='start')]]
         await query.message.edit_text(
             text=script.CONTRIBUTION_TUTORIAL,
