@@ -997,6 +997,11 @@ async def cb_handler(client: Client, query: CallbackQuery):
         except:
             pass
 
+    # -- OUR PING TEST IS SAFELY TUCKED HERE --
+    elif query.data == "ping_test":
+        return await query.answer("🟢 THE BUTTON IS ALIVE!", show_alert=True)
+
+
     elif query.data.startswith("index_all_"):
         try:
             # 1. Parse the hidden data
