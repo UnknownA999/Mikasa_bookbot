@@ -226,7 +226,7 @@ Nᴀᴍᴇ : {}
 
 Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
     
-    CAPTION = """<b><a href="https://t.me/Bookhubz">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/Bookhubz">[ Bookhubz ]</a></b>"""
+    CAPTION = """<b><a href="https://t.me/Bookhubz">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/Bookhubz">[Bookhubz]</a></b>"""
 
     
     MOVIE_UPDATE_NOTIFY_TXT = """
