@@ -523,6 +523,10 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 • /reset_group - ʀᴇꜱᴇᴛ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ.
 • /details - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ."""    
 
+    # ADD THESE TWO LINES AT THE VERY BOTTOM INSIDE THE CLASS
+    INDEX_START_TXT = "⏳ <b>Indexing Started...</b> from ID {}"
+    INDEX_COMPLETE_TXT = "✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{}`\n⏭ Skipped: `{}`"
+
 
     CONTRIBUTION_TUTORIAL = """<b>📤 ʜᴏᴡ ᴛᴏ ᴄᴏɴᴛʀɪʙᴜᴛᴇ ᴛᴏ ᴛʜᴇ ʟɪʙʀᴀʀʏ</b>
 
