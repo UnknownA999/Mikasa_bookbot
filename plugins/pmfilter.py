@@ -1053,6 +1053,46 @@ async def cb_handler(client: Client, query: CallbackQuery):
     elif query.data == "hiding":
         await query.answer("ʙᴇᴄᴀᴜsᴇ ᴏғ ʟᴀɢᴛᴇ ғɪʟᴇs ɪɴ ᴅᴀᴛᴀʙᴀsᴇ,🙏\nɪᴛ ᴛᴀᴋᴇꜱ ʟɪᴛᴛʟᴇ ʙɪᴛ ᴛɪᴍᴇ",show_alert=True)
 
+    elif query.data.startswith("index_all_"):
+        _, _, channel_id, current_msg_id = query.data.split("_")
+        channel_id = int(channel_id)
+        current_msg_id = int(current_msg_id)
+        
+        # 1. Fetch the last indexed ID from your database settings
+        settings = await get_settings(query.message.chat.id)
+        last_id = settings.get('last_indexed_id') or 0
+        
+        if last_id >= current_msg_id:
+            return await query.answer("✨ Already up to date!", show_alert=True)
+            
+        await query.message.edit_text(f"⏳ <b>Indexing Started...</b> from ID {last_id}")
+        
+        saved = 0
+        duplicates = 0
+        
+        # 2. Start the loop to fetch and save files
+        try:
+            for msg_id in range(last_id + 1, current_msg_id + 1):
+                try:
+                    m = await client.get_messages(channel_id, msg_id)
+                    if m and (m.document or m.video or m.audio):
+                        # save_file handles the unique index automatically
+                        sts, _ = await save_file(m.document or m.video or m.audio)
+                        if sts: saved += 1
+                        else: duplicates += 1
+                except Exception:
+                    continue
+                
+                # Anti-ban delay (0.5s)
+                await asyncio.sleep(0.5) 
+            
+            # 3. Update the last indexed ID so you don't repeat the same files next time
+            await save_group_settings(query.message.chat.id, 'last_indexed_id', current_msg_id)
+            await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped: `{duplicates}`")
+            
+        except Exception as e:
+            await query.message.edit_text(f"❌ <b>Error:</b> `{str(e)}`")
+            
     elif query.data == "delallcancel":
         userid = query.from_user.id
         chat_type = query.message.chat.type
