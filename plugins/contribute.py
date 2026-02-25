@@ -62,3 +62,18 @@ async def contribute_file(client, message):
     await db.add_contribution(user_id)
     
     await message.reply_text("✅ **Contribution Accepted!** Thank you for sharing knowledge. Check /my_profile!")
+
+@Client.on_message(filters.chat(BIN_CHANNEL) & (filters.document | filters.video | filters.audio))
+async def auto_index_handler(client, message):
+    try:
+        # This grabs the file object regardless of type
+        media = message.document or message.video or message.audio
+        
+        # save_file automatically checks for duplicates before saving
+        sts, file_id = await save_file(media)
+        
+        if sts:
+            print(f"✅ Auto-Indexed: {getattr(media, 'file_name', 'Unknown File')}")
+    except Exception as e:
+        print(f"❌ Auto-Index Error: {e}")
+        
