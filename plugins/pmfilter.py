@@ -997,26 +997,39 @@ async def cb_handler(client: Client, query: CallbackQuery):
         except:
             pass
 
-    # ONLY ONE index_all_ block should be here
     elif query.data.startswith("index_all_"):
         try:
-            # Smart split for negative IDs
+            # We use rsplit to handle negative channel IDs safely
             data = query.data.split("_")
             current_msg_id = int(data[-1])
             channel_id = int(data[-2])
             
+            await query.message.edit_text(f"⏳ <b>Diagnostic:</b>\nChannel: <code>{channel_id}</code>\nTarget ID: <code>{current_msg_id}</code>\n\n<i>If you see this, the button is working! Starting loop...</i>")
+            
             settings = await get_settings(query.message.chat.id)
             last_id = settings.get('last_indexed_id') or 0
             
-            if last_id >= current_msg_id:
-                return await query.answer("✨ Already up to date!", show_alert=True)
-                
-            await query.message.edit_text(f"⏳ <b>Indexing Started...</b>\nFrom ID: <code>{last_id}</code> to <code>{current_msg_id}</code>")
+            saved = 0
+            duplicates = 0
             
-            # ... (Rest of the indexing loop) ...
+            for msg_id in range(last_id + 1, current_msg_id + 1):
+                try:
+                    m = await client.get_messages(channel_id, msg_id)
+                    if m and not getattr(m, "empty", True):
+                        if m.document or m.video or m.audio:
+                            sts, _ = await save_file(m.document or m.video or m.audio)
+                            if sts: saved += 1
+                            else: duplicates += 1
+                except Exception:
+                    continue
+                await asyncio.sleep(0.5) 
+            
+            await save_group_settings(query.message.chat.id, 'last_indexed_id', current_msg_id)
+            await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped: `{duplicates}`")
             
         except Exception as e:
-            await query.message.edit_text(f"❌ <b>Index Error:</b> `{str(e)}`")
+            await query.message.edit_text(f"❌ <b>Crash Report:</b> <code>{str(e)}</code>")
+            
 
     
     elif query.data == "pages":
