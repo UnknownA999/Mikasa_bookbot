@@ -85,25 +85,18 @@ async def check_db_size(db):
         print(f"Error Checking Database Size: {e}")
         return 0
 
-# 1. Add "custom_name=None" inside the parentheses
-async def save_file(media, custom_name=None):
+
+async def save_file(media):
+    """Save file in database, with detailed logging."""
     file_id, file_ref = unpack_new_file_id(media.file_id)
     
     if not file_id or file_id is None or file_id == "None":
-        logger.error(f"[REJECTED] Null file_id. Skipping save.")
+        logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
         return False, 2 
 
-    # 2. Add our smart naming logic here
-    raw_name = custom_name or getattr(media, "file_name", None) or getattr(media, "caption", "Scraped_Video")
-    if not raw_name:
-        raw_name = "Scraped_Video"
-
     file_name = re.sub(
-        r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(raw_name)
-    ).strip()
-    
-    # ... Leave the rest of the Duplicate Check logic below this exactly as it is! ...
-
+        r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(media.file_name)
+    )
 
     # --- SMART DUPLICATE CHECK ---
     search_query = {
@@ -453,3 +446,4 @@ async def dreamxbotz_get_series(limit: int = 30) -> Dict[str, List[int]]:
     except Exception as e:
         logger.error(f"Error in dreamxbotz_get_series: {e}")
         return []
+        
