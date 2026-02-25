@@ -104,10 +104,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
-                    InlineKeyboardButton('📤 ᴄᴏɴᴛʀɪʙᴜᴛᴇ', callback_data='contrib_tut'),
-                    InlineKeyboardButton('🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ', callback_data='show_leaderboard')
-                ],[
-                    InlineKeyboardButton('📊 ᴍʏ ᴘʀᴏꜰɪʟᴇ', callback_data='my_profile_cb'),
+                    InlineKeyboardButton('📤 ᴄᴏɴᴛʀɪʙᴜᴛᴇ', url='https://t.me/contribution_grp'),     
                     InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
                 ],[
                     InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
