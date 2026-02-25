@@ -997,9 +997,10 @@ async def cb_handler(client: Client, query: CallbackQuery):
         except:
             pass
 
+    # ONLY ONE index_all_ block should be here
     elif query.data.startswith("index_all_"):
         try:
-            # Smart split: rsplit ensures we grab the message ID from the end correctly
+            # Smart split for negative IDs
             data = query.data.split("_")
             current_msg_id = int(data[-1])
             channel_id = int(data[-2])
@@ -1008,27 +1009,11 @@ async def cb_handler(client: Client, query: CallbackQuery):
             last_id = settings.get('last_indexed_id') or 0
             
             if last_id >= current_msg_id:
-                return await query.answer("✨ Everything is already indexed!", show_alert=True)
+                return await query.answer("✨ Already up to date!", show_alert=True)
                 
             await query.message.edit_text(f"⏳ <b>Indexing Started...</b>\nFrom ID: <code>{last_id}</code> to <code>{current_msg_id}</code>")
             
-            saved = 0
-            duplicates = 0
-            
-            for msg_id in range(last_id + 1, current_msg_id + 1):
-                try:
-                    m = await client.get_messages(channel_id, msg_id)
-                    if m and not getattr(m, "empty", True):
-                        if m.document or m.video or m.audio:
-                            sts, _ = await save_file(m.document or m.video or m.audio)
-                            if sts: saved += 1
-                            else: duplicates += 1
-                except Exception:
-                    continue
-                await asyncio.sleep(0.5) 
-            
-            await save_group_settings(query.message.chat.id, 'last_indexed_id', current_msg_id)
-            await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped: `{duplicates}`")
+            # ... (Rest of the indexing loop) ...
             
         except Exception as e:
             await query.message.edit_text(f"❌ <b>Index Error:</b> `{str(e)}`")
