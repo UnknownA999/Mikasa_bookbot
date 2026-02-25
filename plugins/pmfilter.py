@@ -4,7 +4,7 @@ from fuzzywuzzy import process
 from dreamxbotz.util.file_properties import get_name, get_hash
 from urllib.parse import quote_plus
 import logging
-from database.ia_filterdb import Media, Media2, get_file_details, get_search_results, get_bad_files
+from database.ia_filterdb import Media, Media2, get_file_details, get_search_results, get_bad_files, save_file
 from database.config_db import mdb
 from pymongo import DeleteOne
 from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid, ChatAdminRequired, UserNotParticipant
@@ -1004,7 +1004,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         
         # 1. Retrieve the last indexed ID from your group settings
         settings = await get_settings(query.message.chat.id)
-        last_id = settings.get('last_indexed_id', 0)
+        last_id = settings.get('last_indexed_id') or 0
         
         if last_id >= current_msg_id:
             return await query.answer("✨ Everything is already indexed!", show_alert=True)
