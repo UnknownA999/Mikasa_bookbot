@@ -522,3 +522,7 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 • /remove_fsub - ʀᴇᴍᴏᴠᴇ ᴄᴜꜱᴛᴏᴍ ꜰᴏʀᴄᴇ ꜱᴜʙ ᴄʜᴀɴɴᴇʟ.
 • /reset_group - ʀᴇꜱᴇᴛ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ.
 • /details - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ."""    
+
+    INDEX_START_TXT = "⏳ <b>Indexing Started...</b> from ID {}"
+    INDEX_COMPLETE_TXT = "✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{}`\n⏭ Skipped: `{}`"
+
