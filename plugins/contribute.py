@@ -22,7 +22,8 @@ async def contribute_file(client, message):
             return await message.reply_text(
                 f"<b>Hello Admin!</b>\n\nDetected forward from <code>{message.forward_from_chat.title}</code>.\nDo you want to index all files from the last saved ID up to this message?",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📁 Index Channel", callback_data="ping_test")],
+                    [InlineKeyboardButton("📁 Index Channel", callback_data=f"index_all_{message.forward_from_chat.id}_{message.forward_from_message_id}")],
+
                     [InlineKeyboardButton("✖️ Skip & Close", callback_data="close_data")]
                 ])
             )
