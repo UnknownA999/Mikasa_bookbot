@@ -997,6 +997,47 @@ async def cb_handler(client: Client, query: CallbackQuery):
         except:
             pass
 
+    elif query.data.startswith("index_all_"):
+        _, _, channel_id, current_msg_id = query.data.split("_")
+        channel_id = int(channel_id)
+        current_msg_id = int(current_msg_id)
+        
+        # 1. Fetch the last indexed ID from your database settings
+        settings = await get_settings(query.message.chat.id)
+        last_id = settings.get('last_indexed_id', 0)
+        
+        if last_id >= current_msg_id:
+            return await query.answer("✨ Already up to date!", show_alert=True)
+            
+        await query.message.edit_text(f"⏳ <b>Indexing Started...</b>\nFrom ID: <code>{last_id}</code> to <code>{current_msg_id}</code>\n<i>Safe-mode enabled (0.5s delay)</i>")
+        
+        saved = 0
+        duplicates = 0
+        
+        # 2. Start the loop to fetch and save files
+        try:
+            for msg_id in range(last_id + 1, current_msg_id + 1):
+                try:
+                    # Using get_messages as a standard way to fetch by ID
+                    m = await client.get_messages(channel_id, msg_id)
+                    if m.document or m.video or m.audio:
+                        # save_file from your ia_filterdb handles duplicates automatically
+                        sts, _ = await save_file(m.document or m.video or m.audio)
+                        if sts: saved += 1
+                        else: duplicates += 1
+                except Exception:
+                    pass
+                
+                # Anti-ban delay to prevent FloodWait
+                await asyncio.sleep(0.5) 
+            
+            # 3. Update the last indexed ID so you don't repeat the same files next time
+            await save_group_settings(query.message.chat.id, 'last_indexed_id', current_msg_id)
+            await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped (Duplicates): `{duplicates}`")
+            
+        except Exception as e:
+            await query.message.edit_text(f"❌ <b>Error:</b> `{e}`")
+    
     elif query.data == "pages":
         await query.answer("ᴛʜɪs ɪs ᴘᴀɢᴇs ʙᴜᴛᴛᴏɴ 😅")
 
