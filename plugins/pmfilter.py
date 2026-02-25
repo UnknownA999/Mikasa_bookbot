@@ -1600,60 +1600,24 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
         await query.answer()
 
-    elif query.data == "show_leaderboard":
-        top_users = await db.get_top_monthly_contributors(10) 
-        text = "<b>📅 THIS MONTH'S CHAMPIONS 📅</b>\n\n"
-        
-        if not top_users:
-            text += "<i>No contributions this month yet. Be the first!</i>"
-        else:
-            for i, user in enumerate(top_users, 1):
-                text += f"{i}. {user.get('name', 'User')} — {user.get('monthly_contributions', 0)} Books\n"
-        
-        buttons = [[InlineKeyboardButton('⇍ ʙᴀᴄᴋ', callback_data='start')]]
-        await query.message.edit_text(
-            text=text,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            parse_mode=enums.ParseMode.HTML
-        )
-        await query.answer()
-
-    elif query.data == "my_profile_cb":
-        user_id = query.from_user.id
-        user_data = await db.get_user(user_id) 
-        
-        lifetime_count = user_data.get('contributions', 0) if user_data else 0
-        monthly_count = user_data.get('monthly_contributions', 0) if user_data else 0
-        
-        def get_badge(count):
-            if count >= 100: return "🏆 Grand Librarian"
-            if count >= 50: return "🥈 Sage of Knowledge"
-            if count >= 20: return "🥉 Master Archivist"
-            if count >= 5: return "🎖️ Senior Contributor"
-            return "👤 Aspiring Scholar"
-
-        text = (
-            f"<b>📊 ʏᴏᴜʀ ʟɪʙʀᴀʀʏ ᴘʀᴏꜰɪʟᴇ</b>\n\n"
-            f"👤 <b>ɴᴀᴍᴇ:</b> {query.from_user.mention}\n"
-            f"<b>▬▬ 📅 THIS MONTH ▬▬</b>\n"
-            f"📚 Books Added: <b>{monthly_count}</b>\n"
-            f"🎖️ Current Rank: <b>{get_badge(monthly_count)}</b>\n\n"
-            f"<b>▬▬ 🌟 ALL-TIME LEGACY ▬▬</b>\n"
-            f"📚 Total Added: <b>{lifetime_count}</b>\n"
-            f"🎖️ Lifetime Rank: <b>{get_badge(lifetime_count)}</b>\n"
-        )
-        
-        buttons = [[InlineKeyboardButton('⇍ ʙᴀᴄᴋ', callback_data='start')]]
-        await query.message.edit_text(
-            text=text,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            parse_mode=enums.ParseMode.HTML
-        )
-        await query.answer()
-
+    elif query.data == "start":
+        # This is your updated main menu!
+        buttons = [[
+            InlineKeyboardButton('🔰 ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🔰', url=f'http://telegram.me/{temp.U_NAME}?startgroup=true')
+        ],[
+            InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
+            InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
+        ],[
+            InlineKeyboardButton('📤 ᴄᴏɴᴛʀɪʙᴜᴛᴇ', url='https://t.me/contribution_grp'),
+            InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
+        ],[
+            InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
+        ]]
         reply_markup = InlineKeyboardMarkup(buttons)
+        
         current_time = datetime.now(pytz.timezone(TIMEZONE))
         curr_time = current_time.hour
+        
         if curr_time < 12:
             gtxt = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ 🌞"
         elif curr_time < 17:
@@ -1662,6 +1626,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             gtxt = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌘"
         else:
             gtxt = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌑"
+            
         try:
             await client.edit_message_media(
                 query.message.chat.id,
@@ -1670,12 +1635,14 @@ async def cb_handler(client: Client, query: CallbackQuery):
             )
         except Exception as e:
             pass
+            
         await query.message.edit_text(
             text=script.START_TXT.format(query.from_user.mention, gtxt, temp.U_NAME, temp.B_NAME),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
-        await query.answer(MSG_ALRT)
+        await query.answer()
+
 
     elif query.data == "donation":
         buttons = [[
