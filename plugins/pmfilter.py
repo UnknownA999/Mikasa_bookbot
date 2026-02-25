@@ -998,54 +998,51 @@ async def cb_handler(client: Client, query: CallbackQuery):
             pass
 
     elif query.data.startswith("index_all_"):
-        _, _, channel_id, current_msg_id = query.data.split("_")
-        channel_id = int(channel_id)
-        current_msg_id = int(current_msg_id)
-        
-        # 1. Retrieve the last indexed ID from your group settings
-        settings = await get_settings(query.message.chat.id)
-        last_id = settings.get('last_indexed_id') or 0
-        
-        if last_id >= current_msg_id:
-            return await query.answer("✨ Everything is already indexed!", show_alert=True)
-            
-        await query.message.edit_text(
-            f"⏳ <b>Indexing Started...</b>\n"
-            f"From ID: <code>{last_id}</code> to <code>{current_msg_id}</code>\n"
-            f"<i>Safe-mode: 0.5s delay per message</i>"
-        )
-        
-        saved = 0
-        duplicates = 0
-        
-        # 2. Loop through the message range to index files
         try:
+            # 1. Parse the hidden data
+            _, _, channel_id, current_msg_id = query.data.split("_")
+            channel_id = int(channel_id)
+            current_msg_id = int(current_msg_id)
+            
+            # 2. Get the settings safely
+            settings = await get_settings(query.message.chat.id)
+            last_id = settings.get('last_indexed_id') if settings else 0
+            if last_id is None:
+                last_id = 0
+            
+            if last_id >= current_msg_id:
+                return await query.answer("✨ Already up to date!", show_alert=True)
+                
+            # Hardcoded text so we don't rely on Script.py causing errors!
+            await query.message.edit_text(f"⏳ <b>Indexing Started...</b>\nFrom ID <code>{last_id}</code> to <code>{current_msg_id}</code>")
+            
+            saved = 0
+            duplicates = 0
+            
+            # 3. The Indexing Loop
             for msg_id in range(last_id + 1, current_msg_id + 1):
                 try:
                     m = await client.get_messages(channel_id, msg_id)
-                    # Check for documents, videos, or audio files
-                    if m and (m.document or m.video or m.audio):
-                        # Use your existing save_file function which handles duplicate checks
-                        sts, _ = await save_file(m.document or m.video or m.audio)
-                        if sts: saved += 1
-                        else: duplicates += 1
-                except Exception:
-                    continue
+                    if m and getattr(m, "empty", True) == False:
+                        if m.document or m.video or m.audio:
+                            sts, _ = await save_file(m.document or m.video or m.audio)
+                            if sts: 
+                                saved += 1
+                            else: 
+                                duplicates += 1
+                except Exception as inner_e:
+                    pass # Skip deleted messages or errors safely
                 
-                # Apply 0.5s delay to avoid Telegram FloodWait/bans
-                await asyncio.sleep(0.5) 
+                await asyncio.sleep(0.5) # Anti-ban delay
             
-            # 3. Update the database with the new 'last_indexed_id'
+            # 4. Save and Finish
             await save_group_settings(query.message.chat.id, 'last_indexed_id', current_msg_id)
-            await query.message.edit_text(
-                f"✅ <b>Indexing Complete!</b>\n\n"
-                f"📥 New Files: `{saved}`\n"
-                f"⏭ Skipped (Duplicates): `{duplicates}`"
-            )
+            await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped: `{duplicates}`")
             
         except Exception as e:
-            await query.message.edit_text(f"❌ <b>Error:</b> `{str(e)}`")
-            
+            # If it crashes, it will print the error right to your screen!
+            await query.message.edit_text(f"❌ <b>Crash Report:</b> `{str(e)}`")
+
     
     elif query.data == "pages":
         await query.answer("ᴛʜɪs ɪs ᴘᴀɢᴇs ʙᴜᴛᴛᴏɴ 😅")
