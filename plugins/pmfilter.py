@@ -1967,8 +1967,7 @@ async def auto_filter(client, msg, spoll=False):
 
                 find = search.split(" ")
                 search = ""
-                removes = ["in", "upload", "series", "full",
-                           "horror", "thriller", "mystery", "print", "file"]
+                removes = ["upload", "series", "full", "print", "file"]
                 for x in find:
                     if x in removes:
                         continue
@@ -2233,7 +2232,7 @@ async def advantage_spell_chok(client, message):
     query = re.sub(
         r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)",
         "", message.text, flags=re.IGNORECASE)
-    query = query.strip() + " "
+
     try:
         movies = await get_poster(search, bulk=True)
     except:
