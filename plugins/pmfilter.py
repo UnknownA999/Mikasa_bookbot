@@ -999,19 +999,21 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif query.data.startswith("index_all_"):
         try:
-            # We use rsplit to handle negative channel IDs safely
+            # Safer parsing for channel IDs with dashes/underscores
             data = query.data.split("_")
             current_msg_id = int(data[-1])
             channel_id = int(data[-2])
             
-            await query.message.edit_text(f"⏳ <b>Diagnostic:</b>\nChannel: <code>{channel_id}</code>\nTarget ID: <code>{current_msg_id}</code>\n\n<i>If you see this, the button is working! Starting loop...</i>")
-            
             settings = await get_settings(query.message.chat.id)
             last_id = settings.get('last_indexed_id') or 0
             
+            if last_id >= current_msg_id:
+                return await query.answer("✨ Database is already up to date!", show_alert=True)
+                
+            await query.message.edit_text(f"⏳ <b>Indexing Started...</b>\nTarget ID: <code>{current_msg_id}</code>")
+            
             saved = 0
             duplicates = 0
-            
             for msg_id in range(last_id + 1, current_msg_id + 1):
                 try:
                     m = await client.get_messages(channel_id, msg_id)
@@ -1028,8 +1030,8 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.message.edit_text(f"✅ <b>Indexing Complete!</b>\n\n📥 Saved: `{saved}`\n⏭ Skipped: `{duplicates}`")
             
         except Exception as e:
-            await query.message.edit_text(f"❌ <b>Crash Report:</b> <code>{str(e)}</code>")
-            
+            await query.message.edit_text(f"❌ <b>Critical Error:</b> <code>{str(e)}</code>")
+
 
     
     elif query.data == "pages":
