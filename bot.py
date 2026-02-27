@@ -1,3 +1,5 @@
+import asyncio
+from library_builder import background_book_scraper
 import sys
 import glob
 import importlib
