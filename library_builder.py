@@ -45,6 +45,14 @@ async def background_book_scraper(app: Client, db):
                     ext = book.extension
                     lang = book.language or "Unknown"
                     
+                    # 💥 NEW: Skip non-English books 💥
+                    if 'english' not in lang.lower():
+                        continue
+                    
+                    # Clean the title exactly how your bot expects
+                    clean_title = title.replace("/", "-").replace(":", "")
+
+                    
                     # Clean the title exactly how your bot expects
                     clean_title = title.replace("/", "-").replace(":", "")
                     custom_file_name = f"{clean_title} by {author} [{lang}] @Bookhubz.{ext}"
