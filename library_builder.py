@@ -52,9 +52,15 @@ async def background_book_scraper(app: Client, db):
                         continue
 
                     # 2. Get the direct, ad-free download link
-                    direct_link = s.resolved_download_link(book)
-                    if not direct_link:
+                    try:
+                        book.resolve_direct_download_link()
+                        direct_link = book.resolved_download_link
+                        if not direct_link:
+                            continue
+                    except Exception as e:
+                        print(f"⚠️ Skip: Could not resolve link for {title}")
                         continue
+
 
                     # 3. Stream to RAM (Zero Disk Usage!)
                     headers = {'User-Agent': 'Mozilla/5.0'}
