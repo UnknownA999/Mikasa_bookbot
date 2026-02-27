@@ -25,6 +25,7 @@ class script(object):
 📌 ᴜꜱᴇ ᴛʜᴇ ꜰᴇᴛᴄʜ ᴄᴏᴍᴍᴀɴᴅ:  
 ➤ ꜰᴏʀ ᴇɴɢʟɪꜱʜ: `/fetch Atomic Habits`
 ➤ ꜰᴏʀ ᴏᴛʜᴇʀ ʟᴀɴɢᴜᴀɢᴇꜱ: `/fetch Atomic Habits lang:spanish`
+➤ ꜰᴏʀ ᴍᴀɴɢᴀ ᴄʜᴀᴘᴛᴇʀꜱ: /manga Jujutsu Kaisen 1
 
 🚀 ᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ ꜰɪɴᴅ ɪᴛ, ᴜᴘʟᴏᴀᴅ ɪᴛ, ᴀɴᴅ ɢɪᴠᴇ ɪᴛ ᴛᴏ ʏᴏᴜ ɪɴ 1 ᴍɪɴᴜᴛᴇ!
 </b>"""
