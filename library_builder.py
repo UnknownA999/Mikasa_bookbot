@@ -6,7 +6,7 @@ from libgen_api_enhanced import LibgenSearch, SearchTopic
 # 💥 IMPORTING YOUR BOT'S NATIVE DATABASE HANDLERS 💥
 from database.ia_filterdb import save_file, Media 
 
-BIN_CHANNEL_ID = -100123456789 # Put your Bookhubz Bin channel ID here!
+BIN_CHANNEL_ID = -1003793921200 # Put your Bookhubz Bin channel ID here!
 
 # The genres or authors you want to scrape endlessly
 BOOKS_TO_SCRAPE = [
