@@ -1,5 +1,6 @@
 import io
 import requests
+import re
 from pyrogram import Client, filters
 from libgen_api_enhanced import LibgenSearch, SearchTopic
 from database.ia_filterdb import save_file, Media 
@@ -20,28 +21,49 @@ class MockMedia:
 async def fetch_book_on_demand(client, message):
     # Check if they actually typed a book name
     if len(message.command) == 1:
-        return await message.reply_text("⚠️ Please give me a book name.\nExample: `/fetch Atomic Habits`")
+        return await message.reply_text(
+            "⚠️ Please give me a book name.\n\n"
+            "**Examples:**\n"
+            "1. Default (English): `/fetch Atomic Habits`\n"
+            "2. Specific Language: `/fetch Atomic Habits lang:spanish`"
+        )
         
-    query = message.text.split(" ", 1)[1]
-    status_msg = await message.reply_text(f"🔍 Searching the web for **{query}**...\n*(This takes a minute for the first time)*")
+    raw_query = message.text.split(" ", 1)[1]
+    
+    # 💥 BULLETPROOF LANGUAGE PARSER 💥
+    # Looks for "lang:spanish", "lang:hindi", etc.
+    lang_match = re.search(r'lang:([a-zA-Z]+)', raw_query, re.IGNORECASE)
+    if lang_match:
+        target_lang = lang_match.group(1).lower()
+        # Remove the "lang:xxx" part from the search query so Libgen searches properly
+        search_query = re.sub(r'lang:[a-zA-Z]+', '', raw_query, flags=re.IGNORECASE).strip()
+    else:
+        target_lang = "english" # Default
+        search_query = raw_query.strip()
+
+    status_msg = await message.reply_text(f"🔍 Searching the web for **{search_query}** ({target_lang.capitalize()})...\n*(This takes a minute for the first time)*")
     
     s = LibgenSearch()
     try:
         # 1. Search Libgen
-        results = s.search_default(query, search_in=[SearchTopic.FICTION, SearchTopic.LIBGEN])
+        results = s.search_default(search_query, search_in=[SearchTopic.FICTION, SearchTopic.LIBGEN])
         if not results:
             return await status_msg.edit_text("❌ Couldn't find that book online right now. Check your spelling!")
             
-        # 💥 NEW FILTER: Scan results for the English version 💥
+        # 💥 DYNAMIC LANGUAGE FILTER 💥
         book = None
         for result in results:
-            if result.language and 'english' in result.language.lower():
+            if result.language and target_lang in result.language.lower():
                 book = result
                 break
         
-        # If no English version exists at all, fallback to the top result
+        # If the specific language isn't found, fallback to the top result
         if not book:
             book = results[0] 
+            actual_lang = book.language or "Unknown"
+            await status_msg.edit_text(f"⚠️ Couldn't find a **{target_lang.capitalize()}** version.\n📥 Downloading the **{actual_lang}** version instead...")
+        else:
+            await status_msg.edit_text(f"📥 Found **{book.title}** ({target_lang.capitalize()})!\nDownloading to server buffer...")
 
         title = book.title
         author = book.author
@@ -56,8 +78,6 @@ async def fetch_book_on_demand(client, message):
         exists = await Media.count_documents({"file_name": custom_file_name}, limit=1)
         if exists:
             return await status_msg.edit_text(f"✅ **{clean_title}** is already in our database!\n\nJust search for it normally.")
-
-        await status_msg.edit_text(f"📥 Found **{title}**!\nDownloading to server buffer...")
         
         # 3. Resolve the direct link safely
         try:
@@ -97,4 +117,3 @@ async def fetch_book_on_demand(client, message):
             
     except Exception as e:
         await status_msg.edit_text(f"❌ An error occurred: `{str(e)}`")
-      
