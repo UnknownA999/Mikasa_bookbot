@@ -23,10 +23,12 @@ class script(object):
 3️⃣ ɪꜰ ɴᴏᴛ ꜰᴏᴜɴᴅ, ʏᴏᴜ ᴄᴀɴ ᴍᴀᴋᴇ ᴛʜᴇ ʙᴏᴛ ᴅᴏᴡɴʟᴏᴀᴅ ɪᴛ ꜰʀᴏᴍ ᴛʜᴇ ᴡᴇʙ:
 
 📌 ᴜꜱᴇ ᴛʜᴇ ꜰᴇᴛᴄʜ ᴄᴏᴍᴍᴀɴᴅ:  
-➤ /fetch Book Name (ᴇx: /fetch Atomic Habits)
+➤ ꜰᴏʀ ᴇɴɢʟɪꜱʜ: `/fetch Atomic Habits`
+➤ ꜰᴏʀ ᴏᴛʜᴇʀ ʟᴀɴɢᴜᴀɢᴇꜱ: `/fetch Atomic Habits lang:spanish`
 
 🚀 ᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ ꜰɪɴᴅ ɪᴛ, ᴜᴘʟᴏᴀᴅ ɪᴛ, ᴀɴᴅ ɢɪᴠᴇ ɪᴛ ᴛᴏ ʏᴏᴜ ɪɴ 1 ᴍɪɴᴜᴛᴇ!
 </b>"""
+
 
 
     ABOUT_TXT = """<b>╭────[ ᴍʏ ᴅᴇᴛᴀɪʟs ]────⍟
@@ -150,8 +152,9 @@ Nᴀᴍᴇ - {}
 ✨ ɪғ ɪᴛ ɪꜱ sᴛɪʟʟ ɴᴏᴛ ғᴏᴜɴᴅ, ʏᴏᴜ ᴄᴀɴ ᴅᴏᴡɴʟᴏᴀᴅ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ!
 👉 ᴊᴜꜱᴛ ᴛʏᴘᴇ: /fetch Book Name
 
-(ᴇxᴀᴍᴘʟᴇ: /fetch Atomic Habits)
+(ᴇxᴀᴍᴘʟᴇꜱ: `/fetch Atomic Habits` ᴏʀ `/fetch Atomic Habits lang:hindi`)
 </b>"""
+
 
 
     
@@ -171,7 +174,8 @@ Nᴀᴍᴇ - {}
 ✨ ʙᴜᴛ ʏᴏᴜ ᴄᴀɴ ᴀᴅᴅ ɪᴛ ʀɪɢʜᴛ ɴᴏᴡ!
 👉 ᴛʏᴘᴇ: /fetch Book Name
         
-(ᴇxᴀᴍᴘʟᴇ: /fetch Harry Potter)</b>"""
+(ᴇxᴀᴍᴘʟᴇꜱ: `/fetch Harry Potter` ᴏʀ `/fetch Harry Potter lang:spanish`)</b>"""
+
 
 
     
