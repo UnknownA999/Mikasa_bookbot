@@ -32,7 +32,17 @@ async def fetch_book_on_demand(client, message):
         if not results:
             return await status_msg.edit_text("❌ Couldn't find that book online right now. Check your spelling!")
             
-        book = results[0] # Grab the #1 top result
+        # 💥 NEW FILTER: Scan results for the English version 💥
+        book = None
+        for result in results:
+            if result.language and 'english' in result.language.lower():
+                book = result
+                break
+        
+        # If no English version exists at all, fallback to the top result
+        if not book:
+            book = results[0] 
+
         title = book.title
         author = book.author
         ext = book.extension
