@@ -1,4 +1,5 @@
 from library_builder import background_book_scraper
+import os  # <--- ADD THIS LINE
 import sys
 import glob
 import importlib
@@ -81,10 +82,21 @@ async def dreamxbotz_start():
     now = datetime.now(tz)
     time = now.strftime("%H:%M:%S %p")
     await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time))
+    
+    # --- 🌐 START WEB SERVER (RESTORED FOR RENDER) 🌐 ---
+    app = web.AppRunner(await web_server())
+    await app.setup()
+    bind_address = "0.0.0.0"
+    render_port = int(os.environ.get("PORT", 8080))
+    await web.TCPSite(app, bind_address, render_port).start()
+    print(f"🌐 Web server successfully bound to port {render_port}")
+    # ----------------------------------------------------
+
     print("📚 Starting Background Book Scraper...")
     asyncio.create_task(background_book_scraper(dreamxbotz, db))
     
     await idle()
+
     
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
