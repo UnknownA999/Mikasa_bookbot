@@ -6,7 +6,7 @@ from libgen_api_enhanced import LibgenSearch, SearchTopic
 # 💥 IMPORTING YOUR BOT'S NATIVE DATABASE HANDLERS 💥
 from database.ia_filterdb import save_file, Media 
 
-BIN_CHANNEL_ID = -1003793921200 # Put your Bookhubz Bin channel ID here!
+BIN_CHANNEL_ID = -1003793921200 # Your Bookhubz Bin channel ID
 
 # 💥 THE POPULAR GENRE HARVEST LIST 💥
 POPULAR_GENRES = [
@@ -28,19 +28,18 @@ class MockMedia:
         self.caption = message.caption
 
 async def background_book_scraper(app: Client, db):
-    print("🤖 Background Library Builder Started...")
+    print("🤖 Background Library Builder Started (SAFE HARVEST MODE)...")
     s = LibgenSearch()
     
     while True: # Infinite loop to keep it running 24/7
         for query in POPULAR_GENRES:
-
             try:
                 # Search Fiction database first
                 results = s.search_default(query, search_in=[SearchTopic.FICTION, SearchTopic.LIBGEN])
                 if not results:
                     continue
                     
-                for book in results[:15]: # Grab 15 books per cycle
+                for book in results[:15]: # Grab top 15 books per genre
                     title = book.title
                     author = book.author
                     ext = book.extension
@@ -51,7 +50,6 @@ async def background_book_scraper(app: Client, db):
                     custom_file_name = f"{clean_title} by {author} [{lang}] @Bookhubz.{ext}"
 
                     # 1. SMART CHECK: See if your bot already has this exact filename
-                    # This uses your ultra-fast umongo Media model
                     exists = await Media.count_documents({"file_name": custom_file_name}, limit=1)
                     if exists:
                         continue
@@ -65,7 +63,6 @@ async def background_book_scraper(app: Client, db):
                     except Exception as e:
                         print(f"⚠️ Skip: Could not resolve link for {title}")
                         continue
-
 
                     # 3. Stream to RAM (Zero Disk Usage!)
                     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -86,7 +83,6 @@ async def background_book_scraper(app: Client, db):
                     )
 
                     # 6. SAVE TO YOUR NATIVE DATABASE
-                    # We wrap the document so your save_file() accepts it flawlessly
                     media_obj = MockMedia(sent_msg.document, sent_msg)
                     saved, status = await save_file(media_obj)
                     
@@ -95,9 +91,9 @@ async def background_book_scraper(app: Client, db):
                     else:
                         print(f"⚠️ Sent to channel, but DB skip/error code: {status}")
 
-                    # Sleep 2 minutes between downloads
+                    # 💥 PLAYING IT SAFE: 2 Minute Sleep 💥
                     await asyncio.sleep(120)
 
             except Exception as e:
                 print(f"Scraper Error on '{query}': {e}")
-                await asyncio.sleep(60) 
+                await asyncio.sleep(60)
