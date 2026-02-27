@@ -8,9 +8,13 @@ from database.ia_filterdb import save_file, Media
 
 BIN_CHANNEL_ID = -1003793921200 # Put your Bookhubz Bin channel ID here!
 
-# The genres or authors you want to scrape endlessly
-BOOKS_TO_SCRAPE = [
-    "Dostoevsky", "Psychological Thriller", "Classic Literature", "Manga"
+# 💥 THE POPULAR GENRE HARVEST LIST 💥
+POPULAR_GENRES = [
+    "Psychological Thriller", "Philosophy", "Classic Literature", 
+    "Manga", "Light Novel", "Manhwa", "Comic", "Graphic Novel",
+    "Mystery", "Science Fiction", "Fantasy", "Romance", 
+    "Self-Help", "Historical Fiction", "Horror", "Crime", 
+    "Business", "Biography", "True Crime", "Dystopian"
 ]
 
 # A small wrapper to make the document compatible with your save_file() logic
@@ -28,14 +32,15 @@ async def background_book_scraper(app: Client, db):
     s = LibgenSearch()
     
     while True: # Infinite loop to keep it running 24/7
-        for query in BOOKS_TO_SCRAPE:
+        for query in POPULAR_GENRES:
+
             try:
                 # Search Fiction database first
                 results = s.search_default(query, search_in=[SearchTopic.FICTION, SearchTopic.LIBGEN])
                 if not results:
                     continue
                     
-                for book in results[:3]: # Grab 3 books per cycle
+                for book in results[:15]: # Grab 15 books per cycle
                     title = book.title
                     author = book.author
                     ext = book.extension
