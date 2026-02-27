@@ -152,6 +152,7 @@ Nᴀᴍᴇ - {}
 
 ✨ ɪғ ɪᴛ ɪꜱ sᴛɪʟʟ ɴᴏᴛ ғᴏᴜɴᴅ, ʏᴏᴜ ᴄᴀɴ ᴅᴏᴡɴʟᴏᴀᴅ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ!
 👉 ᴊᴜꜱᴛ ᴛʏᴘᴇ: /fetch Book Name
+➤ ꜰᴏʀ ᴍᴀɴɢᴀ ᴄʜᴀᴘᴛᴇʀꜱ: /manga Manga Name
 
 (ᴇxᴀᴍᴘʟᴇꜱ: `/fetch Atomic Habits` ᴏʀ `/fetch Atomic Habits lang:hindi`)
 </b>"""
