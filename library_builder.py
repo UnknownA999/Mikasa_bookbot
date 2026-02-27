@@ -3,6 +3,8 @@ import io
 import requests
 from pyrogram import Client
 from libgen_api_enhanced import LibgenSearch, SearchTopic
+# 💥 IMPORTING YOUR BOT'S NATIVE DATABASE HANDLERS 💥
+from database.ia_filterdb import save_file, Media 
 
 BIN_CHANNEL_ID = -100123456789 # Put your Bookhubz Bin channel ID here!
 
@@ -10,6 +12,16 @@ BIN_CHANNEL_ID = -100123456789 # Put your Bookhubz Bin channel ID here!
 BOOKS_TO_SCRAPE = [
     "Dostoevsky", "Psychological Thriller", "Classic Literature", "Manga"
 ]
+
+# A small wrapper to make the document compatible with your save_file() logic
+class MockMedia:
+    def __init__(self, document, message):
+        self.file_id = document.file_id
+        self.file_name = document.file_name
+        self.file_size = document.file_size
+        self.file_type = "document"
+        self.mime_type = document.mime_type
+        self.caption = message.caption
 
 async def background_book_scraper(app: Client, db):
     print("🤖 Background Library Builder Started...")
@@ -23,14 +35,19 @@ async def background_book_scraper(app: Client, db):
                 if not results:
                     continue
                     
-                for book in results[:3]: # Grab 3 books per cycle to avoid getting blocked
+                for book in results[:3]: # Grab 3 books per cycle
                     title = book.title
                     author = book.author
                     ext = book.extension
                     lang = book.language or "Unknown"
                     
-                    # 1. Check if we already have it in MongoDB
-                    exists = await db.books.find_one({"title": title.lower()})
+                    # Clean the title exactly how your bot expects
+                    clean_title = title.replace("/", "-").replace(":", "")
+                    custom_file_name = f"{clean_title} by {author} [{lang}] @Bookhubz.{ext}"
+
+                    # 1. SMART CHECK: See if your bot already has this exact filename
+                    # This uses your ultra-fast umongo Media model
+                    exists = await Media.count_documents({"file_name": custom_file_name}, limit=1)
                     if exists:
                         continue
 
@@ -48,25 +65,24 @@ async def background_book_scraper(app: Client, db):
                     file_in_ram = io.BytesIO(response.content)
                     
                     # 4. Rename exactly how you want it
-                    clean_title = title.replace("/", "-")
-                    custom_file_name = f"{clean_title} by {author} [{lang}] @Bookhubz.{ext}"
                     file_in_ram.name = custom_file_name
 
                     # 5. Upload to Bin Channel
                     sent_msg = await app.send_document(
                         chat_id=BIN_CHANNEL_ID,
                         document=file_in_ram,
-                        caption=f"📚 **{title}**\n👤 {author}\nAdded automatically to #Bookhubz"
+                        caption=f"📚 **{clean_title}**\n👤 {author}\nAdded automatically to #Bookhubz"
                     )
 
-                    # 6. Save to MongoDB
-                    await db.books.insert_one({
-                        "title": title.lower(),
-                        "author": author.lower(),
-                        "file_id": sent_msg.document.file_id,
-                        "source": "auto_scraper"
-                    })
-                    print(f"✅ Added: {custom_file_name}")
+                    # 6. SAVE TO YOUR NATIVE DATABASE
+                    # We wrap the document so your save_file() accepts it flawlessly
+                    media_obj = MockMedia(sent_msg.document, sent_msg)
+                    saved, status = await save_file(media_obj)
+                    
+                    if saved:
+                        print(f"✅ Added & Indexed: {custom_file_name}")
+                    else:
+                        print(f"⚠️ Sent to channel, but DB skip/error code: {status}")
 
                     # Sleep 2 minutes between downloads
                     await asyncio.sleep(120)
