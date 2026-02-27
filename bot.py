@@ -82,6 +82,7 @@ async def dreamxbotz_start():
     await dreamxbotz.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(temp.B_LINK, today, time))
     print("📚 Starting Background Book Scraper...")
     asyncio.create_task(background_book_scraper(dreamxbotz, db))
+    
     await idle()
     
 if __name__ == '__main__':
