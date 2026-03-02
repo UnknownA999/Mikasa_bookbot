@@ -1,6 +1,6 @@
 import asyncio
 import io
-import aiohttp # 💥 The new, non-blocking downloader
+import aiohttp
 from pyrogram import Client
 from libgen_api_enhanced import LibgenSearch, SearchTopic
 from database.ia_filterdb import save_file, Media 
@@ -24,7 +24,7 @@ class MockMedia:
         self.mime_type = document.mime_type
         self.caption = message.caption
 
-# 💥 NEW: This forces the Libgen search into a background thread so the bot doesn't freeze
+# 💥 This forces the Libgen search into a background thread so the bot doesn't freeze!
 async def async_search(s, query):
     return await asyncio.to_thread(s.search_default, query, search_in=[SearchTopic.FICTION, SearchTopic.LIBGEN])
 
@@ -35,7 +35,6 @@ async def background_book_scraper(app: Client, db):
     while True: 
         for query in POPULAR_GENRES:
             try:
-                # Use the new background search
                 results = await async_search(s, query)
                 if not results:
                     continue
@@ -65,7 +64,7 @@ async def background_book_scraper(app: Client, db):
                     except Exception:
                         continue
 
-                    # 💥 NEW: Async Downloading! This lets the bot answer users WHILE downloading
+                    # 💥 ASYNC DOWNLOADING! Allows bot to answer users WHILE downloading
                     headers = {'User-Agent': 'Mozilla/5.0'}
                     async with aiohttp.ClientSession() as session:
                         async with session.get(direct_link, headers=headers, timeout=30) as response:
