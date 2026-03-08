@@ -42,6 +42,8 @@ class Media(Document):
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
+    quality = fields.StrField(allow_none=True) # --- NEW ---
+    season = fields.StrField(allow_none=True)  # --- NEW ---
 
     class Meta:
         indexes = ("$file_name",)
@@ -57,6 +59,8 @@ class Media2(Document):
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
+    quality = fields.StrField(allow_none=True) # --- NEW ---
+    season = fields.StrField(allow_none=True)  # --- NEW ---
 
     class Meta:
         indexes = ("$file_name",)
@@ -138,6 +142,8 @@ async def save_file(media):
             file_type=media.file_type,
             mime_type=media.mime_type,
             caption=(media.caption.html if media.caption and INDEX_CAPTION else None),
+            quality=getattr(media, 'quality', 'Standard'), # --- NEW ---
+            season=getattr(media, 'season', 'N/A'),        # --- NEW ---
         )
     except ValidationError as e:
         logger.exception(f"[VALIDATION ERROR] '{file_name}' → {e}")
@@ -446,4 +452,3 @@ async def dreamxbotz_get_series(limit: int = 30) -> Dict[str, List[int]]:
     except Exception as e:
         logger.error(f"Error in dreamxbotz_get_series: {e}")
         return []
-        
