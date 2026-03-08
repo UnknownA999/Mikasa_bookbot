@@ -193,8 +193,24 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         if not media:
                             unsupported += 1
                             continue
+                            
+                        # Standard Attributes
                         media.file_type = message.media.value
                         media.caption = message.caption
+                        
+                        # --- NEW PARSING LOGIC START ---
+                        # Grab the text we need to search (either file name or caption)
+                        search_text = getattr(media, 'file_name', '') or message.caption or ""
+                        
+                        # Extract Quality (e.g., 1080p, 720p, 4k, EPUB)
+                        quality_match = re.search(r'(?i)(1080p|720p|480p|360p|2160p|4k|epub|pdf|cbz|cbr)', search_text)
+                        media.quality = quality_match.group(1).lower() if quality_match else "Standard"
+
+                        # Extract Season, Volume, or Episode (e.g., S01, Vol 1, Ep 12)
+                        season_match = re.search(r'(?i)(s\d+|season\s*\d+|vol\s*\d+|volume\s*\d+|ep\s*\d+|episode\s*\d+)', search_text)
+                        media.season = season_match.group(1).title() if season_match else "N/A"
+                        # --- NEW PARSING LOGIC END ---
+
                         save_tasks.append(save_file(media))
 
                     except Exception:
@@ -254,4 +270,3 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                 f"❌ Error: <code>{e}</code>",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('Close', callback_data='close_data')]])
             )
-
