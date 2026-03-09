@@ -28,6 +28,26 @@ class script(object):
 🚀 ᴛʜᴇ ʙᴏᴛ ᴡɪʟʟ ꜰɪɴᴅ ɪᴛ, ᴜᴘʟᴏᴀᴅ ɪᴛ, ᴀɴᴅ ɢɪᴠᴇ ɪᴛ ᴛᴏ ʏᴏᴜ ɪɴ 1 ᴍɪɴᴜᴛᴇ!
 </b>"""
 
+
+    ABOUT_TXT = """<b>╭────[ ᴍʏ ᴅᴇᴛᴀɪʟs ]────⍟
+├⍟ Mʏ Nᴀᴍᴇ : <a href=https://t.me/{}>{}</a>
+├⍟ Dᴇᴠᴇʟᴏᴘᴇʀ : <a href={}>ᴏᴡɴᴇʀ</a> 
+├⍟ Lɪʙʀᴀʀʏ : <a href='https://docs.pyrogram.org/'>ᴘʏʀᴏɢʀᴀᴍ</a>
+├⍟ Lᴀɴɢᴜᴀɢᴇ : <a href='https://www.python.org/download/releases/3.0/'>ᴘʏᴛʜᴏɴ 𝟹</a> 
+├⍟ Dᴀᴛᴀʙᴀsᴇ : <a href='https://www.mongodb.com/'>ᴍᴏɴɢᴏ ᴅʙ</a> 
+├⍟ Bᴏᴛ Sᴇʀᴠᴇʀ : <a href='https://heroku.com/'>ʜᴇʀᴏᴋᴜ</a> 
+├⍟ Bᴜɪʟᴅ Sᴛᴀᴛᴜs : ᴠ1.4 [ ꜱᴛᴀʙʟᴇ ]
+╰───────────────⍟</b>"""
+    RESTART_TXT = """
+<b>{} Bᴏᴛ Rᴇsᴛᴀʀᴛᴇᴅ !
+
+📅 Dᴀᴛᴇ : <code>{}</code>
+⏰ Tɪᴍᴇ : <code>{}</code>
+🌐 Tɪᴍᴇᴢᴏɴᴇ : <code>Asia/Kolkata</code>
+🛠️ Bᴜɪʟᴅ Sᴛᴀᴛᴜs: <code> v1.4 [ Sᴛᴀʙʟᴇ ]</code>
+</b>"""
+
+    
     CHANNELS = """
 <b>⚡ ɢʀᴏᴜᴘs & ᴄʜᴀɴɴᴇʟs ɪɴғᴏ ⚡ 
 
