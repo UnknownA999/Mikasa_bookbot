@@ -2112,49 +2112,36 @@ async def auto_filter(client, msg, spoll=False):
                 for idx, file in enumerate(files, start=1):
                     quality_tag = getattr(file, 'quality', 'Standard').upper()
                     season_tag = getattr(file, 'season', 'N/A')
-                    
                     display_tag = ""
-                    if quality_tag != "STANDARD":
-                        display_tag += f"[{quality_tag}] "
-                    if season_tag != "N/A":
-                        display_tag += f"[{season_tag}] "
-                        
+                    if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
+                    if season_tag != "N/A": display_tag += f"[{season_tag}] "
                     cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
-       else:
+        else:
             temp.IMDB_CAP[message.from_user.id] = None
             if ULTRA_FAST_MODE:
                 if False:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'iP Update'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'iP Update'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
-                for idx, file in enumerate(files, start=1):
-                    quality_tag = getattr(file, 'quality', 'Standard').upper()
-                    season_tag = getattr(file, 'season', 'N/A')
-                    
-                    display_tag = ""
-                    if quality_tag != "STANDARD":
-                        display_tag += f"[{quality_tag}] "
-                    if season_tag != "N/A":
-                        display_tag += f"[{season_tag}] "
-                        
-                    cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
+                    for idx, file in enumerate(files, start=1):
+                        quality_tag = getattr(file, 'quality', 'Standard').upper()
+                        season_tag = getattr(file, 'season', 'N/A')
+                        display_tag = ""
+                        if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
+                        if season_tag != "N/A": display_tag += f"[{season_tag}] "
+                        cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
             else:
                 if False:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'iP Update'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'iP Update'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
-
-                for idx, file in enumerate(files, start=1):
-                    quality_tag = getattr(file, 'quality', 'Standard').upper()
-                    season_tag = getattr(file, 'season', 'N/A')
-                    
-                    display_tag = ""
-                    if quality_tag != "STANDARD":
-                        display_tag += f"[{quality_tag}] "
-                    if season_tag != "N/A":
-                        display_tag += f"[{season_tag}] "
-                        
-                    cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
+                    for idx, file in enumerate(files, start=1):
+                        quality_tag = getattr(file, 'quality', 'Standard').upper()
+                        season_tag = getattr(file, 'season', 'N/A')
+                        display_tag = ""
+                        if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
+                        if season_tag != "N/A": display_tag += f"[{season_tag}] "
+                        cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
 
         sent = None
         try:
