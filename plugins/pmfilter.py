@@ -2114,8 +2114,8 @@ async def auto_filter(client, msg, spoll=False):
             if True:
                 cap += "\n\n<b><u>Your Requested Files Are Here</u></b>\n\n"
                 for idx, file in enumerate(files, start=1):
-                    quality_tag = getattr(file, 'quality', 'Standard').upper()
-                    season_tag = getattr(file, 'season', 'N/A')
+                    quality_tag = str(getattr(file, 'quality') or 'Standard').upper()
+                    season_tag = str(getattr(file, 'season') or 'N/A')
                     display_tag = ""
                     if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
                     if season_tag != "N/A": display_tag += f"[{season_tag}] "
@@ -2128,8 +2128,8 @@ async def auto_filter(client, msg, spoll=False):
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                     for idx, file in enumerate(files, start=1):
-                        quality_tag = getattr(file, 'quality', 'Standard').upper()
-                        season_tag = getattr(file, 'season', 'N/A')
+                        quality_tag = str(getattr(file, 'quality') or 'Standard').upper()
+                        season_tag = str(getattr(file, 'season') or 'N/A')
                         display_tag = ""
                         if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
                         if season_tag != "N/A": display_tag += f"[{season_tag}] "
@@ -2140,8 +2140,8 @@ async def auto_filter(client, msg, spoll=False):
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                     for idx, file in enumerate(files, start=1):
-                        quality_tag = getattr(file, 'quality', 'Standard').upper()
-                        season_tag = getattr(file, 'season', 'N/A')
+                        quality_tag = str(getattr(file, 'quality') or 'Standard').upper()
+                        season_tag = str(getattr(file, 'season') or 'N/A')
                         display_tag = ""
                         if quality_tag != "STANDARD": display_tag += f"[{quality_tag}] "
                         if season_tag != "N/A": display_tag += f"[{season_tag}] "
