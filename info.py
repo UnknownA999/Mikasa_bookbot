@@ -172,10 +172,13 @@ AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.ma
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 LANGUAGES = {"ᴇɴɢʟɪsʜ": "eng", "ʜɪɴᴅɪ": "hin", "ᴀʀᴀʙɪᴄ": "ara", "ʀᴜssɪᴀɴ": "rus", "ғʀᴇɴᴄʜ": "fre", "ᴊᴀᴘᴀɴᴇsᴇ": "jpn", "sᴘᴀɴɪsʜ": "spa", "ɢᴇʀᴍᴀɴ": "ger", "ᴋᴏʀᴇᴀɴ": "kor"}
-QUALITIES = ["PDF", "EPUB", "MOBI", "CBZ", "ZIP"]
+
+# Added Movie and Anime Resolutions
+QUALITIES = ["360p", "480p", "720p", "1080p", "1440p", "2160p", "4K", "PDF", "EPUB", "MOBI", "CBZ", "CBR", "ZIP"]
 
 SEASON_COUNT = 100
-SEASONS = [f"Vol {i}" for i in range(1, SEASON_COUNT + 1)]
+# Added "Season 1" and "S01" formats alongside "Vol 1"
+SEASONS = [f"Vol {i}" for i in range(1, SEASON_COUNT + 1)] + [f"Season {i}" for i in range(1, SEASON_COUNT + 1)] + [f"S{i:02d}" for i in range(1, SEASON_COUNT + 1)]
 
 BAD_WORDS = {
     "PrivateMovieZ",
