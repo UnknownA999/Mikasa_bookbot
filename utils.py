@@ -413,7 +413,7 @@ def clean_filename(file_name):
 
 def get_size(size):
     if not size:
-    return "Unknown Size"
+        return "Unknown Size"
     units = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB"]
     size = float(size)
     i = 0
@@ -421,6 +421,7 @@ def get_size(size):
         i += 1
         size /= 1024.0
     return "%.2f %s" % (size, units[i])
+
     
 def split_list(l, n):
     for i in range(0, len(l), n):
