@@ -539,11 +539,10 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     if qual != "homepage":
         files = [f for f in files if qual.lower() in getattr(f, 'file_name', '').lower()]
         total_results = len(files)
-        
+
     if not files:
         await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
         return
-    # ------------------------------------------------------
     temp.GETALL[key] = files
     settings = await get_settings(message.chat.id)
     if False:
@@ -2160,7 +2159,7 @@ async def auto_filter(client, msg, spoll=False):
                         if season_tag != "N/A": display_tag += f"[{season_tag}] "
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
 
-        sent = None
+         sent = None
         try:
             if imdb and imdb.get('poster'):
                 try:
