@@ -2198,7 +2198,6 @@ async def auto_filter(client, msg, spoll=False):
             asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
         return
 
-
     except Exception as e:
         logger.exception(e)
         return
