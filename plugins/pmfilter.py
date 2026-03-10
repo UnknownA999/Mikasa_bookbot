@@ -538,10 +538,18 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     # --- STRICT POST-DB FILTERING TO SEPARATE QUALITIES ---
     if qual != "homepage":
         files = [f for f in files if qual.lower() in getattr(f, 'file_name', '').lower()]
-        total_results = len(files)
+        
+    # Enforce volume if it's already selected
+    season_match = re.search(r'\b(?:s|season|vol)\s?0*(\d+)\b', search.lower())
+    if season_match:
+        s_pat = r'\b(?:s|season|vol)\s?0*' + season_match.group(1) + r'\b'
+        files = [f for f in files if re.search(s_pat, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+
+    total_results = len(files)
 
     if not files:
-        await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
+        BUTTONS[key] = old_search  # Reverts state so buttons don't break!
+        await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
         return
     temp.GETALL[key] = files
     settings = await get_settings(message.chat.id)
@@ -898,9 +906,23 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     chat_id = query.message.chat.id
     req = query.from_user.id
     files, n_offset, total_results = await get_search_results(chat_id, query_input, offset=0, filter=True)
+    
+    # --- STRICT POST-DB FILTERING TO SEPARATE VOLUMES ---
+    if season_tag != "homepage":
+        season_number = int(season_tag[1:])
+        s_pattern = r'\b(?:s|season|vol)\s?0*' + str(season_number) + r'\b'
+        files = [f for f in files if re.search(s_pattern, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+            
+    # Enforce quality if it's already selected
+    for q in QUALITIES:
+        if q.lower() in search_final.lower():
+            files = [f for f in files if q.lower() in getattr(f, 'file_name', '').lower()]
+                
+    total_results = len(files)
+
     if not files:
-        BUTTONS[key] = None
-        return await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ 🚫", show_alert=True)
+        BUTTONS[key] = old_search  # Reverts state so buttons don't break!
+        return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
 
     temp.GETALL[key] = files
     settings = await get_settings(chat_id)
@@ -2200,7 +2222,13 @@ async def auto_filter(client, msg, spoll=False):
 
     except Exception as e:
         logger.exception(e)
+        if 'm' in locals() and m:
+            try:
+                await m.delete()
+            except:
+                pass
         return
+
 
 async def ai_spell_check(chat_id, wrong_name):
     async def search_movie(wrong_name):
