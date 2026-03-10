@@ -2159,7 +2159,7 @@ async def auto_filter(client, msg, spoll=False):
                         if season_tag != "N/A": display_tag += f"[{season_tag}] "
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
 
-         sent = None
+        sent = None
         try:
             if imdb and imdb.get('poster'):
                 try:
@@ -2167,7 +2167,7 @@ async def auto_filter(client, msg, spoll=False):
                         photo = imdb.get('backdrop') if imdb.get('backdrop') and LANDSCAPE_POSTER else imdb.get('poster')
                     else:
                         photo = imdb.get('poster')
-                        sent = await message.reply_photo(photo=photo, caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+                    sent = await message.reply_photo(photo=photo, caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
                 except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
                     pic = imdb.get('poster')
                     poster = pic.replace('.jpg', "._V1_UX360.jpg")
@@ -2198,16 +2198,6 @@ async def auto_filter(client, msg, spoll=False):
             asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
         return
 
-        try:
-            if settings.get('auto_delete'):
-                asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
-        except KeyError:
-            try:
-                await save_group_settings(message.chat.id, 'auto_delete', True)
-            except Exception:
-                pass
-            asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
-        return
 
     except Exception as e:
         logger.exception(e)
