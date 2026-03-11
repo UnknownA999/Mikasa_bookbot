@@ -163,7 +163,7 @@ async def get_stats(bot, message):
         total_users = await db.total_users_count()
         totl_chats = await db.total_chat_count()
         premium = await db.all_premium_users()
-        file1 = await Media.count_documents()
+        file1 = await Media.count_documents({})
         DB_SIZE = 512 * 1024 * 1024
         dbstats = await db_stats.command("dbStats")
         db_size = dbstats['dataSize'] + dbstats['indexSize']
@@ -175,7 +175,7 @@ async def get_stats(bot, message):
             await msg.edit(script.STATUS_TXT.format(
                 total_users, totl_chats, premium, file1, get_size(db_size), get_size(free), uptime, ram, cpu))                                               
             return
-        file2 = await Media2.count_documents()
+        file2 = await Media2.count_documents({})
         db2stats = await db2_stats.command("dbStats")
         db2_size = db2stats['dataSize'] + db2stats['indexSize']
         free2 = DB_SIZE - db2_size
