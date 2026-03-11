@@ -184,7 +184,7 @@ async def get_stats(bot, message):
             file2, get_size(db2_size), get_size(free2), uptime, ram, cpu, (int(file1) + int(file2))
             ))
     except Exception as e:
-       print(f"Error In stats :- {e}")        
+       await msg.edit(f"Error In stats :- {str(e)}")        
 
 @Client.on_message(filters.command('invite') & filters.user(ADMINS))
 async def gen_invite(bot, message):
