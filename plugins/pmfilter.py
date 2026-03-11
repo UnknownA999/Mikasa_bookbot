@@ -248,7 +248,7 @@ async def next_page(bot, query):
     temp.GETALL[key] = files
     temp.SHORT[query.from_user.id] = query.message.chat.id
     settings = await get_settings(query.message.chat.id)
-    if False:
+    if settings.get('button'):
         btn = [
             [
                 InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
@@ -553,7 +553,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
         return
     temp.GETALL[key] = files
     settings = await get_settings(message.chat.id)
-    if False:
+    if settings.get('button'):
         btn = [
             [
                 InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
@@ -734,7 +734,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         return
     temp.GETALL[key] = files
     settings = await get_settings(message.chat.id)
-    if False:
+    if settings.get('button'):
         btn = [
             [
                 InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
@@ -2016,7 +2016,7 @@ async def auto_filter(client, msg, spoll=False):
         temp.GETALL[key] = files
         temp.SHORT[message.from_user.id] = message.chat.id
 
-        if False:
+        if settings.get('button'):
             btn = [
                 [
                     InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
@@ -2139,7 +2139,7 @@ async def auto_filter(client, msg, spoll=False):
                 **locals()
             )
             temp.IMDB_CAP[message.from_user.id] = cap
-            if True:
+            if not settings.get('button'):
                 cap += "\n\n<b><u>Your Requested Files Are Here</u></b>\n\n"
                 for idx, file in enumerate(files, start=1):
                     q_val = getattr(file, 'quality', None)
@@ -2153,7 +2153,7 @@ async def auto_filter(client, msg, spoll=False):
         else:
             temp.IMDB_CAP[message.from_user.id] = None
             if ULTRA_FAST_MODE:
-                if False:
+                if settings.get('button'):
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
@@ -2167,7 +2167,7 @@ async def auto_filter(client, msg, spoll=False):
                         if season_tag != "N/A": display_tag += f"[{season_tag}] "
                         cap += f"<b>\n{idx}. <a href='https://telegram.me/{temp.U_NAME}?start=file_{message.chat.id}_{file.file_id}'>{display_tag}{clean_filename(file.file_name)} [{get_size(file.file_size)}]\n</a></b>"
             else:
-                if False:
+                if settings.get('button'):
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
                 else:
                     cap = f"<b>🏷 ᴛɪᴛʟᴇ : <code>{search}</code>\n🧱 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <code>{total_results}</code>\n⏰ ʀᴇsᴜʟᴛ ɪɴ : <code>{remaining_seconds} Sᴇᴄᴏɴᴅs</code>\n\n📝 ʀᴇǫᴜᴇsᴛᴇᴅ ʙʏ : {message.from_user.mention}\n⚜️ ᴘᴏᴡᴇʀᴇᴅ ʙʏ : ⚡ {message.chat.title or temp.B_LINK or 'Scout Regiment'} \n\n<u>Your Requested Files Are Here</u> \n\n</b>"
