@@ -393,7 +393,12 @@ async def get_settings(group_id):
     if not settings:
         settings = await db.get_settings(group_id)
         temp.SETTINGS.update({group_id: settings})
+        
+    # Add this line to force Text mode globally everywhere
+    settings['button'] = False
+    
     return settings
+
     
 async def save_group_settings(group_id, key, value):
     current = await get_settings(group_id)
