@@ -98,12 +98,12 @@ class script(object):
 🚯 ᴅᴏɴᴛ ᴜꜱᴇ ➠ ':(!,./)"""
 
     # --- THE NEW CAPTION TEMPLATE ---
-    CAPTION = """<b><a href="https://t.me/Bookhubz">{file_name}</a></b>
+    CAPTION = """<b><a href="https://t.me/scout_regimant">{file_name}</a></b>
 
 <b>📺 ꜰᴏʀᴍᴀᴛ/ǫᴜᴀʟɪᴛʏ :</b> {quality}
 <b>📚 ᴠᴏʟᴜᴍᴇ/ꜱᴇᴀꜱᴏɴ :</b> {season}
 
-<b>⚜️ Powered By : <a href="https://t.me/Bookhubz">[Mikasa Network]</a></b>"""
+<b>⚜️ Powered By : <a href="https://t.me/scout_regimant">[Scout Regiment]</a></b>"""
 
 
     
