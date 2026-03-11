@@ -633,7 +633,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
                 curr_time.second+(curr_time.microsecond/1000000)))
         remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
         dreamx_title = clean_search_text(search)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
+        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title,1)
         try:
             if query.message.caption:
                 await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
@@ -814,7 +814,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
                 curr_time.second+(curr_time.microsecond/1000000)))
         remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
         dreamx_title = clean_search_text(search)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
+        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, 1)
         try:
             if query.message.caption:
                 await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
@@ -999,7 +999,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
         )
         remaining_seconds = f"{time_difference.total_seconds():.2f}"
         dreamx_title = clean_search_text(search_final)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
+        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, 1)
         try:
             if query.message.caption:
                 await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
