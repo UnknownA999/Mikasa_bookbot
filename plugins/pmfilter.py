@@ -510,6 +510,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     
     # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
+    old_search = search
     search = search.replace("_", " ")
     
     if qual == "homepage":
@@ -634,7 +635,10 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
         dreamx_title = clean_search_text(search)
         cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
         try:
-            await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            if query.message.caption:
+                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+            else:
+                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
         except MessageNotModified:
             pass
     else:
@@ -705,6 +709,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     
     # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
+    old_search = search
     search = search.replace("_", " ")
     
     if lang == "homepage":
@@ -811,7 +816,10 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
         dreamx_title = clean_search_text(search)
         cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
         try:
-            await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            if query.message.caption:
+                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+            else:
+                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
         except MessageNotModified:
             pass
     else:
@@ -880,6 +888,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     
     # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
+    old_search = search
     search = search.replace("_", " ")
     season_tag = season_tag.lower()
     
@@ -992,11 +1001,10 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
         dreamx_title = clean_search_text(search_final)
         cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, offset=1)
         try:
-            await query.message.edit_text(
-                text=cap,
-                reply_markup=InlineKeyboardMarkup(btn),
-                disable_web_page_preview=True,
-            )
+            if query.message.caption:
+                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+            else:
+                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
         except MessageNotModified:
             pass
     else:
