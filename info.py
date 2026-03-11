@@ -171,7 +171,21 @@ AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pa
 AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.match(ch)]
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
-LANGUAGES = {"ᴇɴɢʟɪsʜ": "eng", "ʜɪɴᴅɪ": "hin", "ᴀʀᴀʙɪᴄ": "ara", "ʀᴜssɪᴀɴ": "rus", "ғʀᴇɴᴄʜ": "fre", "ᴊᴀᴘᴀɴᴇsᴇ": "jpn", "sᴘᴀɴɪsʜ": "spa", "ɢᴇʀᴍᴀɴ": "ger", "ᴋᴏʀᴇᴀɴ": "kor"}
+LANGUAGES = {
+    "ᴇɴɢʟɪsʜ": "eng", 
+    "ʜɪɴᴅɪ": "hin", 
+    "ᴀʀᴀʙɪᴄ": "ara", 
+    "ʀᴜssɪᴀɴ": "rus", 
+    "ғʀᴇɴᴄʜ": "fre", 
+    "ᴊᴀᴘᴀɴᴇsᴇ": "jpn", 
+    "sᴘᴀɴɪsʜ": "spa", 
+    "ɢᴇʀᴍᴀɴ": "ger", 
+    "ᴋᴏʀᴇᴀɴ": "kor",
+    "ᴅᴜᴀʟ ᴀᴜᴅɪᴏ": "dual",
+    "ᴍᴜʟᴛɪ ᴀᴜᴅɪᴏ": "multi",
+    "sᴜʙʙᴇᴅ": "sub",
+    "ᴇ-sᴜʙ": "esub"
+}
 
 # Added Movie and Anime Resolutions
 QUALITIES = ["360p", "480p", "720p", "1080p", "1440p", "2160p", "4K", "PDF", "EPUB", "MOBI", "CBZ", "CBR", "ZIP"]
