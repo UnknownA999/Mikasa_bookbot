@@ -2099,9 +2099,7 @@ async def auto_filter(client, msg, spoll=False):
             btn.append([InlineKeyboardButton(
                 text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
 
-            
-            imdb = None
-
+        imdb = None
 
         cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
         time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
