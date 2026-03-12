@@ -199,6 +199,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         media.caption = message.caption
                         
                         # --- NEW PARSING LOGIC START ---
+                        # --- NEW PARSING LOGIC START ---
                         file_name = getattr(media, 'file_name', '') or ""
                         caption = message.caption or ""
                         search_text = f"{file_name} {caption}".replace("\n", " ").strip()
@@ -214,25 +215,31 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         else:
                             media.season = "N/A"
                             
-                        # Extract Episode to prevent duplicates
+                        # Extract Episode
                         ep_match = re.search(r'(?i)(e\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', search_text)
                         ep_str = ep_match.group(1).replace(":", "").replace("-", "").strip().title() if ep_match else ""
                         
-                        # Build a CLEAN, unique filename
-                        if file_name and len(file_name) > 5:
+                        # 🔥 CRITICAL FIX: Prioritize the beautiful CAPTION over the hidden metadata name!
+                        if caption:
+                            clean_name = caption.split('\n')[0].strip()
+                            # Clean up emojis and "TITLE:" prefix
+                            clean_name = re.sub(r'^[^a-zA-Z0-9]+', '', clean_name)
+                            clean_name = re.sub(r'(?i)^title\s*[:-]*\s*', '', clean_name).strip()
+                        elif file_name:
                             clean_name = file_name
-                        elif caption:
-                            # If no file name, grab ONLY the first line of the caption
-                            clean_name = caption.split('\n')[0].strip() 
                         else:
                             clean_name = f"File_{message.id}"
                             
-                        # Force the episode number into the name so the database doesn't skip them as duplicates!
+                        # Force quality and episode into the name so the DB sees them as unique!
+                        q_tag = str(media.quality).upper()
                         if ep_str and ep_str.lower() not in clean_name.lower():
-                            clean_name = f"{clean_name} [{ep_str}]"
+                            clean_name = f"{clean_name} {ep_str}"
+                        if q_tag != "STANDARD" and q_tag.lower() not in clean_name.lower():
+                            clean_name = f"{clean_name} {q_tag}"
                             
                         media.file_name = clean_name
                         # --- NEW PARSING LOGIC END ---
+
 
 
 
