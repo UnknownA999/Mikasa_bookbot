@@ -199,27 +199,39 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         media.caption = message.caption
                         
                         # --- NEW PARSING LOGIC START ---
-                        # Combine BOTH file name and caption so nothing is missed!
                         file_name = getattr(media, 'file_name', '') or ""
                         caption = message.caption or ""
                         search_text = f"{file_name} {caption}".replace("\n", " ").strip()
-
-                        # Force the database to save the combined text as the file name!
-                        media.file_name = search_text
                         
-                        # Extract Quality (e.g., 1080p, 720p, 4k, EPUB)
+                        # Extract Quality
                         quality_match = re.search(r'(?i)(1080p|720p|480p|360p|2160p|4k|epub|pdf|cbz|cbr)', search_text)
                         media.quality = quality_match.group(1).lower() if quality_match else "Standard"
 
-                        # Extract Season, Volume, or Episode (Now supports colons like "SEASON: 01")
-                        season_match = re.search(r'(?i)(s\d+|season[\s:-]*\d+|vol[\s:-]*\d+|volume[\s:-]*\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', search_text)
-                        
+                        # Extract Season
+                        season_match = re.search(r'(?i)(s\d+|season[\s:-]*\d+|vol[\s:-]*\d+|volume[\s:-]*\d+)', search_text)
                         if season_match:
-                            # Clean up colons and dashes so "SEASON: 01" becomes "Season 01"
-                            clean_season = season_match.group(1).replace(":", "").replace("-", "").strip().title()
-                            media.season = clean_season
+                            media.season = season_match.group(1).replace(":", "").replace("-", "").strip().title()
                         else:
                             media.season = "N/A"
+                            
+                        # Extract Episode to prevent duplicates
+                        ep_match = re.search(r'(?i)(e\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', search_text)
+                        ep_str = ep_match.group(1).replace(":", "").replace("-", "").strip().title() if ep_match else ""
+                        
+                        # Build a CLEAN, unique filename
+                        if file_name and len(file_name) > 5:
+                            clean_name = file_name
+                        elif caption:
+                            # If no file name, grab ONLY the first line of the caption
+                            clean_name = caption.split('\n')[0].strip() 
+                        else:
+                            clean_name = f"File_{message.id}"
+                            
+                        # Force the episode number into the name so the database doesn't skip them as duplicates!
+                        if ep_str and ep_str.lower() not in clean_name.lower():
+                            clean_name = f"{clean_name} [{ep_str}]"
+                            
+                        media.file_name = clean_name
                         # --- NEW PARSING LOGIC END ---
 
 
