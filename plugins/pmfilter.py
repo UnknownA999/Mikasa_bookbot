@@ -271,7 +271,7 @@ async def next_page(bot, query):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
 
                    ]
                    )
@@ -291,7 +291,7 @@ async def next_page(bot, query):
         btn.insert(0, [
             InlineKeyboardButton(
                 "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
         ])
     if ULTRA_FAST_MODE:
         if 0 < offset <= 10:
@@ -577,7 +577,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
                    ])
     else:
         btn = []
@@ -596,7 +596,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
 
                    ])
     if offset != "":
@@ -762,7 +762,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
                    ]
                    )
     else:
@@ -781,7 +781,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
                    ])
     if offset != "":
         try:
@@ -962,7 +962,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
         [
             InlineKeyboardButton(
                 "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}"),
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}"),
         ],
     )
     if n_offset != "":
@@ -2047,7 +2047,7 @@ async def auto_filter(client, msg, spoll=False):
                            InlineKeyboardButton(
                                "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                            InlineKeyboardButton(
-                               "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                               "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{message.chat.id}_{key}")
 
                        ])
         else:
@@ -2067,7 +2067,7 @@ async def auto_filter(client, msg, spoll=False):
                            InlineKeyboardButton(
                                "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                            InlineKeyboardButton(
-                               "Sᴇɴᴅ Aʟʟ", callback_data=f"sendfiles#{key}")
+                               "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{message.chat.id}_{key}")
                        ])
 
         if offset != "":
