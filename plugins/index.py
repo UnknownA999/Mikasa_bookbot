@@ -202,7 +202,10 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         # Combine BOTH file name and caption so nothing is missed!
                         file_name = getattr(media, 'file_name', '') or ""
                         caption = message.caption or ""
-                        search_text = f"{file_name} {caption}"
+                        search_text = f"{file_name} {caption}".replace("\n", " ").strip()
+
+                        # Force the database to save the combined text as the file name!
+                        media.file_name = search_text
                         
                         # Extract Quality (e.g., 1080p, 720p, 4k, EPUB)
                         quality_match = re.search(r'(?i)(1080p|720p|480p|360p|2160p|4k|epub|pdf|cbz|cbr)', search_text)
@@ -218,6 +221,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         else:
                             media.season = "N/A"
                         # --- NEW PARSING LOGIC END ---
+
 
 
                         save_tasks.append(save_file(media))
