@@ -198,7 +198,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         media.file_type = message.media.value
                         media.caption = message.caption
                         
-                        # --- NEW PARSING LOGIC START ---
+                        
                         # --- NEW PARSING LOGIC START ---
                         file_name = getattr(media, 'file_name', '') or ""
                         caption = message.caption or ""
@@ -219,16 +219,23 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         ep_match = re.search(r'(?i)(e\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', search_text)
                         ep_str = ep_match.group(1).replace(":", "").replace("-", "").strip().title() if ep_match else ""
                         
-                        # 🔥 CRITICAL FIX: Prioritize the beautiful CAPTION over the hidden metadata name!
-                        if caption:
-                            clean_name = caption.split('\n')[0].strip()
-                            # Clean up emojis and "TITLE:" prefix
-                            clean_name = re.sub(r'^[^a-zA-Z0-9]+', '', clean_name)
-                            clean_name = re.sub(r'(?i)^title\s*[:-]*\s*', '', clean_name).strip()
-                        elif file_name:
+                        # 🔥 CRITICAL FIX: Smart Title Extraction
+                        clean_name = ""
+                        # 1. Try to find an explicit "TITLE:" tag in the caption first
+                        title_match = re.search(r'(?i)title\s*[:-]*\s*([^\n]+)', caption)
+                        if title_match:
+                            clean_name = title_match.group(1).strip()
+                            # Strip emojis
+                            clean_name = re.sub(r'^[^a-zA-Z0-9]+', '', clean_name).strip()
+                        # 2. If no title tag in caption, fallback to the real file name!
+                        elif file_name and len(file_name) > 5:
                             clean_name = file_name
+                        # 3. Ultimate fallback
                         else:
                             clean_name = f"File_{message.id}"
+                            
+                        # Clean up any weird file extensions (like .mkv, .mp4) from the name
+                        clean_name = re.sub(r'(?i)\.(mkv|mp4|avi|pdf|epub|cbz)', '', clean_name).strip()
                             
                         # Force quality and episode into the name so the DB sees them as unique!
                         q_tag = str(media.quality).upper()
@@ -237,8 +244,9 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         if q_tag != "STANDARD" and q_tag.lower() not in clean_name.lower():
                             clean_name = f"{clean_name} {q_tag}"
                             
-                        media.file_name = clean_name
+                        media.file_name = clean_name.strip()
                         # --- NEW PARSING LOGIC END ---
+
 
 
 
