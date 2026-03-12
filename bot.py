@@ -92,8 +92,8 @@ async def dreamxbotz_start():
     print(f"🌐 Web server successfully bound to port {render_port}")
     # ----------------------------------------------------
 
-    print("📚 Starting Background Book Scraper...")
-    asyncio.create_task(background_book_scraper(dreamxbotz, db))
+    # print("📚 Starting Background Book Scraper...")
+    # asyncio.create_task(background_book_scraper(dreamxbotz, db))
     
     await idle()
 
