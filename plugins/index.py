@@ -202,30 +202,35 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         # --- NEW PARSING LOGIC START ---
                         file_name = getattr(media, 'file_name', '') or ""
                         caption = message.caption or ""
-                        search_text = f"{file_name} {caption}".replace("\n", " ").strip()
+                        
+                        # Search the CAPTION first for tags, because it is more accurate than the hidden file name!
+                        tag_source = caption.replace("\n", " ").strip() if caption else file_name.replace("\n", " ").strip()
                         
                         # Extract Quality
-                        quality_match = re.search(r'(?i)(1080p|720p|480p|360p|2160p|4k|epub|pdf|cbz|cbr)', search_text)
+                        quality_match = re.search(r'(?i)(1080p|720p|480p|360p|2160p|4k|epub|pdf|cbz|cbr)', tag_source)
                         media.quality = quality_match.group(1).lower() if quality_match else "Standard"
 
                         # Extract Season
-                        season_match = re.search(r'(?i)(s\d+|season[\s:-]*\d+|vol[\s:-]*\d+|volume[\s:-]*\d+)', search_text)
+                        season_match = re.search(r'(?i)(s\d+|season[\s:-]*\d+|vol[\s:-]*\d+|volume[\s:-]*\d+)', tag_source)
                         if season_match:
                             media.season = season_match.group(1).replace(":", "").replace("-", "").strip().title()
                         else:
                             media.season = "N/A"
                             
                         # Extract Episode
-                        ep_match = re.search(r'(?i)(e\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', search_text)
+                        ep_match = re.search(r'(?i)(e\d+|ep[\s:-]*\d+|episode[\s:-]*\d+)', tag_source)
                         ep_str = ep_match.group(1).replace(":", "").replace("-", "").strip().title() if ep_match else ""
                         
+                        # Extract Language (Hindi, English, Dual Audio, etc.)
+                        lang_match = re.search(r'(?i)(hindi|english|tamil|telugu|malayalam|kannada|bengali|marathi|gujarati|punjabi|urdu|spanish|french|japanese|korean|dual[\s:-]*audio|multi[\s:-]*audio)', tag_source)
+                        lang_str = lang_match.group(1).title() if lang_match else ""
+
                         # 🔥 CRITICAL FIX: Smart Title Extraction
                         clean_name = ""
                         # 1. Try to find an explicit "TITLE:" tag in the caption first
                         title_match = re.search(r'(?i)title\s*[:-]*\s*([^\n]+)', caption)
                         if title_match:
                             clean_name = title_match.group(1).strip()
-                            # Strip emojis
                             clean_name = re.sub(r'^[^a-zA-Z0-9]+', '', clean_name).strip()
                         # 2. If no title tag in caption, fallback to the real file name!
                         elif file_name and len(file_name) > 5:
@@ -237,10 +242,12 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot):
                         # Clean up any weird file extensions (like .mkv, .mp4) from the name
                         clean_name = re.sub(r'(?i)\.(mkv|mp4|avi|pdf|epub|cbz)', '', clean_name).strip()
                             
-                        # Force quality and episode into the name so the DB sees them as unique!
+                        # Force quality, episode, AND LANGUAGE into the name so the DB sees them as unique!
                         q_tag = str(media.quality).upper()
                         if ep_str and ep_str.lower() not in clean_name.lower():
                             clean_name = f"{clean_name} {ep_str}"
+                        if lang_str and lang_str.lower() not in clean_name.lower():
+                            clean_name = f"{clean_name} {lang_str}"
                         if q_tag != "STANDARD" and q_tag.lower() not in clean_name.lower():
                             clean_name = f"{clean_name} {q_tag}"
                             
