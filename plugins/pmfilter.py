@@ -2224,6 +2224,15 @@ async def auto_filter(client, msg, spoll=False):
             except Exception:
                 pass
             asyncio.create_task(_schedule_delete(sent, message, DELETE_TIME))
+            
+        # --- FORCE STICKER DELETION ON SUCCESS ---
+        if 'm' in locals() and m:
+            try:
+                await m.delete()
+            except:
+                pass
+        # -----------------------------------------
+                
         return
 
     except Exception as e:
