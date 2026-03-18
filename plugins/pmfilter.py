@@ -69,12 +69,14 @@ async def fetch_database_options(chat_id, search_query):
             if code.lower() in name:
                 available["languages"].add(disp_name)
         
-        # Check Seasons (Regex to find S01, Season 1, etc.)
-        season_match = re.search(r'\b(?:s|season)\s?0*(\d+)\b', name)
-        if season_match:
-            available["seasons"].add(int(season_match.group(1)))
-            
-    return available
+        # Check Seasons (Robust Regex to find S01, Season 1, Vol 1, S04E06, etc.)
+        try:
+            season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', name)
+            if season_match:
+                available["seasons"].add(int(season_match.group(1)))
+        except Exception as e:
+            logger.error(f"Regex error in fetch_database_options: {e}")
+            pass
     
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
@@ -540,13 +542,15 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     if qual != "homepage":
         files = [f for f in files if qual.lower() in getattr(f, 'file_name', '').lower()]
         
-    # Enforce volume if it's already selected
-    season_match = re.search(r'\b(?:s|season|vol)\s?0*(\d+)\b', search.lower())
-    if season_match:
-        s_pat = r'\b(?:s|season|vol)\s?0*' + season_match.group(1) + r'\b'
-        files = [f for f in files if re.search(s_pat, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+    # Enforce volume if it's already selected safely
+    try:
+        season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', search)
+        if season_match:
+            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+            files = [f for f in files if re.search(s_pat, getattr(f, 'file_name', ''), re.IGNORECASE)]
+    except Exception as e:
+        logger.error(f"Regex error enforcing volume: {e}")
 
-    total_results = len(files)
 
     if not files:
         BUTTONS[key] = old_search  # Reverts state so buttons don't break!
@@ -916,11 +920,26 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     req = query.from_user.id
     files, n_offset, total_results = await get_search_results(chat_id, query_input, offset=0, filter=True)
     
+    chat_id = query.message.chat.id
+    req = query.from_user.id
+    
+    # FIX: Always pass 'search_final' (a string) to avoid list/string type crashes in DB search
+    try:
+        files, n_offset, total_results = await get_search_results(chat_id, search_final, offset=0, filter=True)
+    except Exception as e:
+        logger.error(f"DB search crashed in seasons handler: {e}")
+        files, n_offset, total_results = [], 0, 0
+        
     # --- STRICT POST-DB FILTERING TO SEPARATE VOLUMES ---
-    if season_tag != "homepage":
-        season_number = int(season_tag[1:])
-        s_pattern = r'\b(?:s|season|vol)\s?0*' + str(season_number) + r'\b'
-        files = [f for f in files if re.search(s_pattern, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+    if season_tag != "homepage" and files:
+        try:
+            season_number = int(season_tag[1:])
+            # Robust regex to match S04, S04E06, etc., without failing on boundaries
+            s_pattern = r'(?i)\b(?:s|season|vol)\s*0*' + str(season_number) + r'(?!\d)'
+            files = [f for f in files if re.search(s_pattern, getattr(f, 'file_name', ''), re.IGNORECASE)]
+        except Exception as e:
+            logger.error(f"Strict filtering crashed: {e}")
+
             
     # Enforce quality if it's already selected
     for q in QUALITIES:
