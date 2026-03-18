@@ -596,6 +596,42 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
 # ==========================================
 # 2. LANGUAGE FILTER
 # ==========================================
+@Client.on_callback_query(filters.regex(r"^languages#"))
+async def languages_cb_handler(client: Client, query: CallbackQuery):
+    try:
+        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
+            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
+    except:
+        pass
+
+    _, key = query.data.split("#")
+    search = (BUTTONS.get(key) or FRESH.get(key)).replace('_', ' ')
+
+    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
+    options = await fetch_database_options(query.message.chat.id, search)
+    available_langs = sorted(list(options["languages"]))
+
+    btn = []
+    if not available_langs:
+        await query.answer("🌍 Nᴏ ʟᴀɴɢᴜᴀɢᴇꜱ ᴅᴇᴛᴇᴄᴛᴇᴅ ꜰᴏʀ ᴛʜɪꜱ ꜰɪʟᴇ!", show_alert=True)
+        return
+
+    for i in range(0, len(available_langs), 2):
+        lang1 = available_langs[i]
+        code1 = LANGUAGES.get(lang1, lang1)
+        row = [InlineKeyboardButton(text=lang1, callback_data=f"fl#{code1}#{key}")]
+        if i + 1 < len(available_langs):
+            lang2 = available_langs[i + 1]
+            code2 = LANGUAGES.get(lang2, lang2)
+            row.append(InlineKeyboardButton(text=lang2, callback_data=f"fl#{code2}#{key}"))
+        btn.append(row)
+
+    btn.insert(0, [InlineKeyboardButton(text="⇊ ꜱᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ ⇊", callback_data="ident")])
+    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"fl#homepage#{key}")])
+
+    await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
+
+
 @Client.on_callback_query(filters.regex(r"^fl#"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     try:
@@ -695,6 +731,44 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
 # ==========================================
 # 3. SEASON / VOLUME FILTER
 # ==========================================
+@Client.on_callback_query(filters.regex(r"^seasons#"))
+async def seasons_cb_handler(client: Client, query: CallbackQuery):
+    try:
+        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
+            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
+    except:
+        pass
+
+    _, key = query.data.split("#")
+    search = (BUTTONS.get(key) or FRESH.get(key)).replace('_', ' ')
+
+    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
+    options = await fetch_database_options(query.message.chat.id, search)
+    available_seasons = sorted(list(options["seasons"]))
+
+    btn = []
+    if not available_seasons:
+        await query.answer("🧐 Nᴏ ꜱᴘᴇᴄɪꜰɪᴄ ᴠᴏʟᴜᴍᴇꜱ ᴅᴇᴛᴇᴄᴛᴇᴅ!", show_alert=True)
+        return
+
+    for i in range(0, len(available_seasons), 3):
+        row = []
+        s1 = available_seasons[i]
+        row.append(InlineKeyboardButton(f"Vᴏʟ {s1}", callback_data=f"fs#S{str(s1).zfill(2)}#{key}"))
+        if i + 1 < len(available_seasons):
+            s2 = available_seasons[i + 1]
+            row.append(InlineKeyboardButton(f"Vᴏʟ {s2}", callback_data=f"fs#S{str(s2).zfill(2)}#{key}"))
+        if i + 2 < len(available_seasons):
+            s3 = available_seasons[i + 2]
+            row.append(InlineKeyboardButton(f"Vᴏʟ {s3}", callback_data=f"fs#S{str(s3).zfill(2)}#{key}"))
+        btn.append(row)
+
+    btn.insert(0, [InlineKeyboardButton("⇊ ꜱᴇʟᴇᴄᴛ ᴠᴏʟᴜᴍᴇ ⇊", callback_data="ident")])
+    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"next_{query.from_user.id}_{key}_0")])
+
+    await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
+
+
 @Client.on_callback_query(filters.regex(r"^fs#"))
 async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     try:
