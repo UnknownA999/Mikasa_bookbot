@@ -38,43 +38,34 @@ BUTTONS1 = {}
 BUTTONS2 = {}
 SPELL_CHECK = {}
 async def fetch_database_options(chat_id, search_query):
-    """
-    Fetches up to 200 files for the query and analyzes them to find 
-    available Seasons, Qualities, and Languages.
-    """
-    # Fetch results (limit 200 to ensure we catch all variations)
     files, _, _ = await get_search_results(chat_id, search_query, max_results=200, filter=True)
-    
     available = {
         "qualities": set(),
         "languages": set(),
         "seasons": set(),
-        "raw_files": files # Keep track of files to check for missing info
+        "raw_files": files 
     }
 
-    
     if not files:
         return available
 
     for file in files:
-        name = file.file_name.lower()
+        name = str(getattr(file, 'file_name', '')).lower()
         
-        # Check Qualities
         for quality in QUALITIES:
             if quality.lower() in name:
                 available["qualities"].add(quality)
         
-        # Check Languages
         for disp_name, code in LANGUAGES.items():
             if code.lower() in name:
                 available["languages"].add(disp_name)
         
-        # Check Seasons (Regex to find S01, Season 1, etc.)
-        season_match = re.search(r'\b(?:s|season)\s?0*(\d+)\b', name)
+        season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', name)
         if season_match:
             available["seasons"].add(int(season_match.group(1)))
             
     return available
+
     
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
@@ -894,15 +885,10 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     
     if season_tag == "homepage":
         search_final = search
-        query_input = search_final
     else:
-        # Remove any existing season pattern (like S01, S02) safely so we can swap seasons
-        search = re.sub(r'\bs\d{1,2}\b', '', search, flags=re.IGNORECASE).strip()
+        search = re.sub(r'(?i)\b(?:s|season|vol)\s*0*\d+(?!\d)', '', search).strip()
         search = re.sub(r"\s+", " ", search)
-        
-        season_number = int(season_tag[1:])
-        query_input = generate_season_variations(search, season_number)
-        search_final = query_input[0] if query_input else f"{search} {season_tag}"
+        search_final = f"{search} {season_tag}"
 
     BUTTONS[key] = search_final
 
@@ -914,13 +900,14 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
 
     chat_id = query.message.chat.id
     req = query.from_user.id
-    files, n_offset, total_results = await get_search_results(chat_id, query_input, offset=0, filter=True)
+    files, n_offset, total_results = await get_search_results(chat_id, search_final, offset=0, filter=True)
     
     # --- STRICT POST-DB FILTERING TO SEPARATE VOLUMES ---
     if season_tag != "homepage":
         season_number = int(season_tag[1:])
-        s_pattern = r'\b(?:s|season|vol)\s?0*' + str(season_number) + r'\b'
-        files = [f for f in files if re.search(s_pattern, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+        s_pattern = r'(?i)\b(?:s|season|vol)\s*0*' + str(season_number) + r'(?!\d)'
+        files = [f for f in files if re.search(s_pattern, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+
             
     # Enforce quality if it's already selected
     for q in QUALITIES:
