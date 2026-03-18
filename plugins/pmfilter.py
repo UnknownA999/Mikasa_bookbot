@@ -494,607 +494,304 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
     
 
 
+# ==========================================
+# 1. FORMAT / QUALITY FILTER
+# ==========================================
 @Client.on_callback_query(filters.regex(r"^fq#"))
 async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
-    _, qual, key = query.data.split("#")
-    
-    search = BUTTONS.get(key) or FRESH.get(key)
-    old_search = search
-    search = search.replace("_", " ")
-    
-    if qual == "homepage":
-        raw_search = search
-    elif qual in search:
-        raw_search = search.replace(qual, "").strip()
-    else:
-        raw_search = f"{search} {qual}".strip()
-        
-    # --- UNIVERSAL ORDERING ---
-    clean_query = raw_search.lower()
-    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
-    if season_match:
-        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
-        
-    found_quals = []
-    for q in QUALITIES:
-        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
-        if re.search(q_pat, clean_query):
-            found_quals.append(q.lower())
-            clean_query = re.sub(q_pat, '', clean_query)
-            
-    found_langs = []
-    for disp_name, code in LANGUAGES.items():
-        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
-        if re.search(c_pat, clean_query):
-            found_langs.append(code.lower())
-            clean_query = re.sub(c_pat, '', clean_query)
-            
-    db_query = re.sub(r"\s+", " ", clean_query).strip()
-    if season_match:
-        db_query += f" s{season_match.group(1).zfill(2)}"
-    for q in found_quals:
-        db_query += f" {q}"
-    for l in found_langs:
-        db_query += f" {l}"
-        
-    db_query = re.sub(r"\s+", " ", db_query).strip()
-    BUTTONS[key] = db_query
-    # --------------------------
-    
-    req = query.from_user.id
-    chat_id = query.message.chat.id
     try:
-        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
-    except:
-        pass
+        _, qual, key = query.data.split("#")
+        search = BUTTONS.get(key) or FRESH.get(key)
+        if not search:
+            return await query.answer("🚫 ꜱᴇᴀʀᴄʜ ᴇxᴘɪʀᴇᴅ! ᴘʟᴇᴀꜱᴇ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ.", show_alert=True)
+            
+        old_search = search
+        search = search.replace("_", " ")
         
-    files, offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
-    
-    # --- UNIVERSAL STRICT POST-DB FILTERING ---
-    if files:
-        if season_match:
-            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
-            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
-        for q in found_quals:
-            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
-        for l in found_langs:
-            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
+        if qual == "homepage":
+            pass
+        elif qual.lower() in search.lower():
+            search = re.sub(r'(?i)\b' + re.escape(qual) + r'\b', '', search)
+        else:
+            search = f"{search} {qual}"
+            
+        search = re.sub(r"\s+", " ", search).strip()
+        BUTTONS[key] = search
+        
+        req = query.from_user.id
+        chat_id = query.message.chat.id
+        try:
+            if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
+                return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
+        except:
+            pass
+            
+        files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+        
+        if files:
+            season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', search)
+            if season_match:
+                s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+                files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+            for q in QUALITIES:
+                if re.search(r'(?i)\b' + re.escape(q) + r'\b', search):
+                    files = [f for f in files if q.lower() in str(getattr(f, 'file_name', '')).lower()]
+            for disp, code in LANGUAGES.items():
+                if re.search(r'(?i)\b' + re.escape(code) + r'\b', search):
+                    files = [f for f in files if code.lower() in str(getattr(f, 'file_name', '')).lower()]
 
-    total_results = len(files)
+        if not files:
+            BUTTONS[key] = old_search  
+            return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
 
-    if not files:
-        BUTTONS[key] = old_search  
-        return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
-
-    temp.GETALL[key] = files
-    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
-
-    settings = await get_settings(message.chat.id)
-    if settings.get('button'):
-        btn = [
-            [
-                InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
-                    file.file_name), callback_data=f'file#{file.file_id}'),
-            ]
-            for file in files
-        ]
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
-                       InlineKeyboardButton(
-                           "Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
-                       InlineKeyboardButton(
-                           "Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
-                   ]
-                   )
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
-                   ])
-    else:
+        total_results = len(files)
+        temp.GETALL[key] = files
+        settings = await get_settings(chat_id)
+        
         btn = []
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
-                       InlineKeyboardButton(
-                           "Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
-                       InlineKeyboardButton(
-                           "Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
-                   ]
-                   )
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
-
-                   ])
-    if offset != "":
-        try:
-            if settings['max_btn']:
-                btn.append(
-
-                    [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                        text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")]
-                )
-            else:
-                btn.append(
-
-                    [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                        text=f"1/{math.ceil(int(total_results)/int(MAX_B_TN))}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")]
-                )
-        except KeyError:
-            await save_group_settings(query.message.chat.id, 'max_btn', True)
-            btn.append(
-
-                [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                    text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")]
-            )
-    else:
-        btn.append(
-
-            [InlineKeyboardButton(
-                text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")]
-        )
-    if not settings["button"]:
-        cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-        time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
-            timedelta(hours=curr_time.hour, minutes=curr_time.minute, seconds=(
-                curr_time.second+(curr_time.microsecond/1000000)))
-        remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
-        dreamx_title = clean_search_text(search)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title,1)
-        try:
-            if query.message.caption:
-                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
-            else:
-                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
-        except MessageNotModified:
-            pass
-    else:
-        try:
-            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
-        except MessageNotModified:
-            pass
-    await query.answer()
-
-# languages
-
-
-@Client.on_callback_query(filters.regex(r"^languages#"))
-async def languages_cb_handler(client: Client, query: CallbackQuery):
-    try:
-        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!",
-                show_alert=True,
-            )
-    except:
-        pass
-
-    _, key = query.data.split("#")
-    search = (BUTTONS.get(key) or FRESH.get(key)).replace('_', ' ')
-
-    # -- DYNAMIC LOGIC START --
-    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
-    options = await fetch_database_options(query.message.chat.id, search)
-    available_langs = sorted(list(options["languages"]))
-    # -- DYNAMIC LOGIC END --
-
-    btn = []
-    if not available_langs:
-        await query.answer("🌍 I couldn't detect a language tag. If this is an international book, please check the title manually!", show_alert=True)
-        return
-
-        for i in range(0, len(items), 2):
-            name1, code1 = items[i]
-            row = [InlineKeyboardButton(text=name1, callback_data=f"fl#{code1}#{key}")]
-            if i + 1 < len(items):
-                name2, code2 = items[i + 1]
-                row.append(InlineKeyboardButton(text=name2, callback_data=f"fl#{code2}#{key}"))
-            btn.append(row)
-    else:
-        # Show only available languages
-        for i in range(0, len(available_langs), 2):
-            lang1 = available_langs[i]
-            code1 = LANGUAGES.get(lang1)
-            row = [InlineKeyboardButton(text=lang1, callback_data=f"fl#{code1}#{key}")]
-            if i + 1 < len(available_langs):
-                lang2 = available_langs[i + 1]
-                code2 = LANGUAGES.get(lang2)
-                row.append(InlineKeyboardButton(text=lang2, callback_data=f"fl#{code2}#{key}"))
-            btn.append(row)
-
-    btn.insert(0, [InlineKeyboardButton(text="⇊ ꜱᴇʟᴇᴄᴛ ʟᴀɴɢᴜᴀɢᴇ ⇊", callback_data="ident")])
-    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"fl#homepage#{key}")])
-
-    await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
+        if settings.get('button'):
+            btn = [[InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(file.file_name), callback_data=f'file#{file.file_id}')] for file in files]
             
+        btn.insert(0, [
+            InlineKeyboardButton('Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
+            InlineKeyboardButton("Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
+            InlineKeyboardButton("Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
+        ])
+        btn.insert(0, [
+            InlineKeyboardButton("ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
+        ])
+        
+        if offset != "":
+            max_b = 10
+            try:
+                max_b = 10 if settings.get('max_btn') else int(MAX_B_TN)
+            except:
+                pass
+            btn.append([InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/max_b)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")])
+        else:
+            btn.append([InlineKeyboardButton(text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
+            
+        if not settings.get("button"):
+            cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+            time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000)))
+            cap = await get_cap(settings, "{:.2f}".format(time_difference.total_seconds()), files, query, total_results, clean_search_text(search), 1)
+            try:
+                if query.message.caption:
+                    await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+                else:
+                    await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            except MessageNotModified:
+                pass
+        else:
+            try:
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
+            except MessageNotModified:
+                pass
+        await query.answer()
+    except Exception as e:
+        logger.error(f"Error in qualities filter: {e}")
+        await query.answer("⚠️ An internal error occurred. Try searching again.", show_alert=True)
 
-
+# ==========================================
+# 2. LANGUAGE FILTER
+# ==========================================
 @Client.on_callback_query(filters.regex(r"^fl#"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
-    _, lang, key = query.data.split("#")
-    
-    search = BUTTONS.get(key) or FRESH.get(key)
-    old_search = search
-    search = search.replace("_", " ")
-    
-    if lang == "homepage":
-        raw_search = search
-    elif lang in search:
-        raw_search = search.replace(lang, "").strip()
-    else:
-        raw_search = f"{search} {lang}".strip()
-
-    # --- UNIVERSAL ORDERING ---
-    clean_query = raw_search.lower()
-    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
-    if season_match:
-        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
-        
-    found_quals = []
-    for q in QUALITIES:
-        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
-        if re.search(q_pat, clean_query):
-            found_quals.append(q.lower())
-            clean_query = re.sub(q_pat, '', clean_query)
-            
-    found_langs = []
-    for disp_name, code in LANGUAGES.items():
-        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
-        if re.search(c_pat, clean_query):
-            found_langs.append(code.lower())
-            clean_query = re.sub(c_pat, '', clean_query)
-            
-    db_query = re.sub(r"\s+", " ", clean_query).strip()
-    if season_match:
-        db_query += f" s{season_match.group(1).zfill(2)}"
-    for q in found_quals:
-        db_query += f" {q}"
-    for l in found_langs:
-        db_query += f" {l}"
-        
-    db_query = re.sub(r"\s+", " ", db_query).strip()
-    BUTTONS[key] = db_query
-    # --------------------------
-    
-    req = query.from_user.id
-    chat_id = query.message.chat.id
     try:
-        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
-    except:
-        pass
+        _, lang, key = query.data.split("#")
+        search = BUTTONS.get(key) or FRESH.get(key)
+        if not search:
+            return await query.answer("🚫 ꜱᴇᴀʀᴄʜ ᴇxᴘɪʀᴇᴅ! ᴘʟᴇᴀꜱᴇ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ.", show_alert=True)
+            
+        old_search = search
+        search = search.replace("_", " ")
+        
+        if lang == "homepage":
+            pass
+        elif lang.lower() in search.lower():
+            search = re.sub(r'(?i)\b' + re.escape(lang) + r'\b', '', search)
+        else:
+            search = f"{search} {lang}"
+            
+        search = re.sub(r"\s+", " ", search).strip()
+        BUTTONS[key] = search
+        
+        req = query.from_user.id
+        chat_id = query.message.chat.id
+        try:
+            if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
+                return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
+        except:
+            pass
 
-    files, offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
-    
-    # --- UNIVERSAL STRICT POST-DB FILTERING ---
-    if files:
-        if season_match:
-            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
-            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
-        for q in found_quals:
-            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
-        for l in found_langs:
-            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
+        files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+        
+        if files:
+            season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', search)
+            if season_match:
+                s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+                files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+            for q in QUALITIES:
+                if re.search(r'(?i)\b' + re.escape(q) + r'\b', search):
+                    files = [f for f in files if q.lower() in str(getattr(f, 'file_name', '')).lower()]
+            for disp, code in LANGUAGES.items():
+                if re.search(r'(?i)\b' + re.escape(code) + r'\b', search):
+                    files = [f for f in files if code.lower() in str(getattr(f, 'file_name', '')).lower()]
 
-    total_results = len(files)
+        if not files:
+            BUTTONS[key] = old_search
+            return await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
 
-    if not files:
-        BUTTONS[key] = old_search
-        return await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
-
-    temp.GETALL[key] = files
-    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
-
-    settings = await get_settings(message.chat.id)
-    if settings.get('button'):
-        btn = [
-            [
-                InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(
-                    file.file_name), callback_data=f'file#{file.file_id}'),
-            ]
-            for file in files
-        ]
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
-                       InlineKeyboardButton(
-                           "Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
-                       InlineKeyboardButton(
-                           "Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
-                   ]
-                   )
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
-                   ]
-                   )
-    else:
+        total_results = len(files)
+        temp.GETALL[key] = files
+        settings = await get_settings(chat_id)
+        
         btn = []
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
-                       InlineKeyboardButton(
-                           "Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
-                       InlineKeyboardButton(
-                           "Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
-                   ])
-        btn.insert(0,
-                   [
-                       InlineKeyboardButton(
-                           "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-                       InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
-                   ])
-    if offset != "":
-        try:
-            if settings['max_btn']:
-                btn.append(
-                    [
-                        InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                            text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")
-                    ])
-            else:
-                btn.append(
-                    [
-                        InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                            text=f"1/{math.ceil(int(total_results)/int(MAX_B_TN))}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")
-                    ])
-        except KeyError:
-            await save_group_settings(query.message.chat.id, 'max_btn', True)
-            btn.append(
-                [
-                    InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                        text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")
-                ])
-    else:
-        btn.append([InlineKeyboardButton(
-            text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
-    if not settings["button"]:
-        cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-        time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - \
-            timedelta(hours=curr_time.hour, minutes=curr_time.minute, seconds=(
-                curr_time.second+(curr_time.microsecond/1000000)))
-        remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
-        dreamx_title = clean_search_text(search)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, 1)
-        try:
-            if query.message.caption:
-                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
-            else:
-                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
-        except MessageNotModified:
-            pass
-    else:
-        try:
-            await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
-        except MessageNotModified:
-            pass
-    await query.answer()
-
-
-@Client.on_callback_query(filters.regex(r"^seasons#"))
-async def seasons_cb_handler(client: Client, query: CallbackQuery):
-    try:
-        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!",
-                show_alert=True,
-            )
-    except:
-        pass
-
-    _, key = query.data.split("#")
-    search = (BUTTONS.get(key) or FRESH.get(key)).replace('_', ' ')
-
-    # -- DYNAMIC LOGIC START --
-    await query.answer("🔄 Cʜᴇᴄᴋɪɴɢ Dᴀᴛᴀʙᴀsᴇ...", show_alert=False)
-    options = await fetch_database_options(query.message.chat.id, search)
-    # Sort seasons numerically (1, 2, 10 instead of 1, 10, 2)
-    available_seasons = sorted(list(options["seasons"]))
-    # -- DYNAMIC LOGIC END --
-
-    btn = []
-    if not available_seasons:
-        await query.answer("🧐 No specific Volumes/Editions detected. Please check the file list manually!", show_alert=True)
-        return
-
-
-    # Generate Buttons for Available Seasons
-    for i in range(0, len(available_seasons), 3): # 3 buttons per row looks better for numbers
-        row = []
-        s1 = available_seasons[i]
-        row.append(InlineKeyboardButton(f"Vᴏʟ {s1}", callback_data=f"fs#S{str(s1).zfill(2)}#{key}"))
+        if settings.get('button'):
+            btn = [[InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(file.file_name), callback_data=f'file#{file.file_id}')] for file in files]
+            
+        btn.insert(0, [
+            InlineKeyboardButton('Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
+            InlineKeyboardButton("Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
+            InlineKeyboardButton("Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
+        ])
+        btn.insert(0, [
+            InlineKeyboardButton("ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
+        ])
         
-        if i + 1 < len(available_seasons):
-            s2 = available_seasons[i + 1]
-            row.append(InlineKeyboardButton(f"Vᴏʟ {s2}", callback_data=f"fs#S{str(s2).zfill(2)}#{key}"))
+        if offset != "":
+            max_b = 10
+            try:
+                max_b = 10 if settings.get('max_btn') else int(MAX_B_TN)
+            except:
+                pass
+            btn.append([InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/max_b)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{offset}")])
+        else:
+            btn.append([InlineKeyboardButton(text="↭ ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
             
-        if i + 2 < len(available_seasons):
-            s3 = available_seasons[i + 2]
-            row.append(InlineKeyboardButton(f"Vᴏʟ {s3}", callback_data=f"fs#S{str(s3).zfill(2)}#{key}"))
+        if not settings.get("button"):
+            cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+            time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000)))
+            cap = await get_cap(settings, "{:.2f}".format(time_difference.total_seconds()), files, query, total_results, clean_search_text(search), 1)
+            try:
+                if query.message.caption:
+                    await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+                else:
+                    await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            except MessageNotModified:
+                pass
+        else:
+            try:
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
+            except MessageNotModified:
+                pass
+        await query.answer()
+    except Exception as e:
+        logger.error(f"Error in languages filter: {e}")
+        await query.answer("⚠️ An internal error occurred. Try searching again.", show_alert=True)
 
-            
-        btn.append(row)
-
-    btn.insert(0, [InlineKeyboardButton("⇊ ꜱᴇʟᴇᴄᴛ ᴠᴏʟᴜᴍᴇ ⇊", callback_data="ident")])
-    btn.append([InlineKeyboardButton(text="↭ ʙᴀᴄᴋ ᴛᴏ ꜰɪʟᴇs ↭", callback_data=f"next_{query.from_user.id}_{key}_0")])
-
-    await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
-    await query.answer()
-
-
-
+# ==========================================
+# 3. SEASON / VOLUME FILTER
+# ==========================================
 @Client.on_callback_query(filters.regex(r"^fs#"))
 async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
-    _, season_tag, key = query.data.split("#")
-    
-    search = BUTTONS.get(key) or FRESH.get(key)
-    old_search = search
-    search = search.replace("_", " ")
-    season_tag = season_tag.lower()
-    
-    if season_tag == "homepage":
-        raw_search = search
-    else:
-        # Swap season safely
-        raw_search = re.sub(r'(?i)\b(?:s|season|vol)\s*0*\d+(?!\d)', '', search).strip()
-        raw_search = f"{raw_search} {season_tag}"
-
-    # --- UNIVERSAL ORDERING ---
-    clean_query = raw_search.lower()
-    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
-    if season_match:
-        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
-        
-    found_quals = []
-    for q in QUALITIES:
-        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
-        if re.search(q_pat, clean_query):
-            found_quals.append(q.lower())
-            clean_query = re.sub(q_pat, '', clean_query)
-            
-    found_langs = []
-    for disp_name, code in LANGUAGES.items():
-        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
-        if re.search(c_pat, clean_query):
-            found_langs.append(code.lower())
-            clean_query = re.sub(c_pat, '', clean_query)
-            
-    db_query = re.sub(r"\s+", " ", clean_query).strip()
-    if season_match:
-        db_query += f" s{season_match.group(1).zfill(2)}"
-    for q in found_quals:
-        db_query += f" {q}"
-    for l in found_langs:
-        db_query += f" {l}"
-        
-    db_query = re.sub(r"\s+", " ", db_query).strip()
-    BUTTONS[key] = db_query
-    # --------------------------
-
     try:
-        if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer("⚠️ Not your request", show_alert=True)
-    except:
-        pass
+        _, season_tag, key = query.data.split("#")
+        season_tag = season_tag.lower()
+        
+        search = BUTTONS.get(key) or FRESH.get(key)
+        if not search:
+            return await query.answer("🚫 ꜱᴇᴀʀᴄʜ ᴇxᴘɪʀᴇᴅ! ᴘʟᴇᴀꜱᴇ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ.", show_alert=True)
+            
+        old_search = search
+        search = search.replace("_", " ")
+        
+        if season_tag == "homepage":
+            pass
+        else:
+            search = re.sub(r'(?i)\b(?:s|season|vol)\s*0*\d+(?!\d)', '', search)
+            search = f"{search} {season_tag}"
+            
+        search = re.sub(r"\s+", " ", search).strip()
+        BUTTONS[key] = search
+        
+        req = query.from_user.id
+        chat_id = query.message.chat.id
+        try:
+            if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
+                return await query.answer("⚠️ Not your request", show_alert=True)
+        except:
+            pass
 
-    chat_id = query.message.chat.id
-    req = query.from_user.id
-    files, n_offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
-    
-    # --- UNIVERSAL STRICT POST-DB FILTERING ---
-    if files:
-        if season_match:
-            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
-            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
-        for q in found_quals:
-            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
-        for l in found_langs:
-            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
+        files, n_offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+        
+        if files:
+            season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', search)
+            if season_match:
+                s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+                files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+            for q in QUALITIES:
+                if re.search(r'(?i)\b' + re.escape(q) + r'\b', search):
+                    files = [f for f in files if q.lower() in str(getattr(f, 'file_name', '')).lower()]
+            for disp, code in LANGUAGES.items():
+                if re.search(r'(?i)\b' + re.escape(code) + r'\b', search):
+                    files = [f for f in files if code.lower() in str(getattr(f, 'file_name', '')).lower()]
 
-    total_results = len(files)
+        if not files:
+            BUTTONS[key] = old_search  
+            return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
 
-    if not files:
-        BUTTONS[key] = old_search  
-        return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
-
-    temp.GETALL[key] = files
-    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
-
-    settings = await get_settings(chat_id)
-    btn: list[list[InlineKeyboardButton]] = []
-    if settings.get("button"):
-        btn.extend(
-            [
-                [
-                    InlineKeyboardButton(
-                        f"🔗 {get_size(f.file_size)} ≽ " +
-                        clean_filename(f.file_name),
-                        callback_data=f"file#{f.file_id}",
-                    )
-                ]
-                for f in files
-            ]
-        )
-    btn.insert(
-        0,
-        [
-            InlineKeyboardButton("Fᴏʀᴍᴀᴛ", callback_data=f"qualities#{key}"),
+        total_results = len(files)
+        temp.GETALL[key] = files
+        settings = await get_settings(chat_id)
+        
+        btn = []
+        if settings.get('button'):
+            btn = [[InlineKeyboardButton(text=f"🔗 {get_size(file.file_size)} ≽ " + clean_filename(file.file_name), callback_data=f'file#{file.file_id}')] for file in files]
+            
+        btn.insert(0, [
+            InlineKeyboardButton('Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
             InlineKeyboardButton("Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
-            InlineKeyboardButton("Sᴇᴀꜱᴏɴ", callback_data=f"seasons#{key}"),
-        ],
-    )
-    btn.insert(
-        0,
-        [
-            InlineKeyboardButton(
-                "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}"),
-        ],
-    )
-    if n_offset != "":
-        try:
-            if settings['max_btn']:
-                btn.append(
-                    [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                        text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{n_offset}")]
-                )
+            InlineKeyboardButton("Vᴏʟᴜᴍᴇ",  callback_data=f"seasons#{key}")
+        ])
+        btn.insert(0, [
+            InlineKeyboardButton("ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{chat_id}_{key}")
+        ])
+        
+        if n_offset != "":
+            max_b = 10
+            try:
+                max_b = 10 if settings.get('max_btn') else int(MAX_B_TN)
+            except:
+                pass
+            btn.append([InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/max_b)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{n_offset}")])
+        else:
+            btn.append([InlineKeyboardButton(text="↭  ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")])
+            
+        if not settings.get("button"):
+            cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+            time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000)))
+            cap = await get_cap(settings, "{:.2f}".format(time_difference.total_seconds()), files, query, total_results, clean_search_text(search), 1)
+            try:
+                if query.message.caption:
+                    await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+                else:
+                    await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+            except MessageNotModified:
+                pass
+        else:
+            try:
+                await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
+            except MessageNotModified:
+                pass
+        await query.answer()
+    except Exception as e:
+        logger.error(f"Error in seasons filter: {e}")
+        await query.answer("⚠️ An internal error occurred. Try searching again.", show_alert=True)
 
-            else:
-                btn.append(
-                    [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                        text=f"1/{math.ceil(int(total_results)/int(MAX_B_TN))}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{n_offset}")]
-                )
-        except KeyError:
-            await save_group_settings(query.message.chat.id, 'max_btn', True)
-            btn.append(
-                [InlineKeyboardButton("ᴘᴀɢᴇ", callback_data="pages"), InlineKeyboardButton(
-                    text=f"1/{math.ceil(int(total_results)/10)}", callback_data="pages"), InlineKeyboardButton(text="ɴᴇxᴛ ⋟", callback_data=f"next_{req}_{key}_{n_offset}")]
-            )
-    else:
-        n_offset = 0
-        btn.append(
-            [InlineKeyboardButton(
-                "↭  ɴᴏ ᴍᴏʀᴇ ᴘᴀɢᴇꜱ ᴀᴠᴀɪʟᴀʙʟᴇ ↭", callback_data="pages")]
-        )
-    if not settings.get("button"):
-        curr_time = datetime.now(pytz.timezone("Asia/Kolkata")).time()
-        time_difference = timedelta(
-            hours=curr_time.hour,
-            minutes=curr_time.minute,
-            seconds=curr_time.second + curr_time.microsecond / 1_000_000,
-        )
-        remaining_seconds = f"{time_difference.total_seconds():.2f}"
-        dreamx_title = clean_search_text(search_final)
-        cap = await get_cap(settings, remaining_seconds, files, query, total_results, dreamx_title, 1)
-        try:
-            if query.message.caption:
-                await query.message.edit_caption(caption=cap, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
-            else:
-                await query.message.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
-        except MessageNotModified:
-            pass
-    else:
-        try:
-            await query.edit_message_reply_markup(InlineKeyboardMarkup(btn))
-        except MessageNotModified:
-            pass
-    await query.answer()
 
 
 @Client.on_callback_query()
