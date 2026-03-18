@@ -35,6 +35,17 @@ async def start(client, message):
         except Exception:
             await message.react(emoji="⚡️", big=True)
     m = message
+    
+    # --- FIX: NEW USER LOGGER MOVED TO THE VERY TOP ---
+    if message.chat.type == enums.ChatType.PRIVATE:
+        if not await db.is_user_exist(message.from_user.id):
+            await db.add_user(message.from_user.id, message.from_user.first_name)
+            try:
+                await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
+            except Exception as e:
+                print(f"Could not send to Log Channel: {e}")
+    # --------------------------------------------------
+
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
         user_id = int(userid)
@@ -92,12 +103,7 @@ async def start(client, message):
             await client.send_message(LOG_CHANNEL, script.LOG_TEXT_G.format(message.chat.title, message.chat.id, total, "Unknown"))       
             await db.add_chat(message.chat.id, message.chat.title)
         return 
-    if not await db.is_user_exist(message.from_user.id):
-        await db.add_user(message.from_user.id, message.from_user.first_name)
-        try:
-            await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-        except Exception as e:
-            print(f"Could not send to Log Channel: {e}")
+
     if len(message.command) != 2:
         buttons = [[
                     InlineKeyboardButton('🔰 ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🔰', url=f'http://telegram.me/{temp.U_NAME}?startgroup=true')
