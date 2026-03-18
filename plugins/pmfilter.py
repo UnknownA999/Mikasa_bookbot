@@ -497,53 +497,79 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
 @Client.on_callback_query(filters.regex(r"^fq#"))
 async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     _, qual, key = query.data.split("#")
-    curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
     
-    # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
     old_search = search
     search = search.replace("_", " ")
     
     if qual == "homepage":
-        pass
+        raw_search = search
     elif qual in search:
-        # Removes the quality if you click it again (Toggles OFF)
-        search = search.replace(qual, "").strip()
-        search = re.sub(r"\s+", " ", search)
+        raw_search = search.replace(qual, "").strip()
     else:
-        # Adds the new quality
-        search = f"{search} {qual}".strip()
+        raw_search = f"{search} {qual}".strip()
         
-    BUTTONS[key] = search
+    # --- UNIVERSAL ORDERING ---
+    clean_query = raw_search.lower()
+    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
+    if season_match:
+        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
+        
+    found_quals = []
+    for q in QUALITIES:
+        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
+        if re.search(q_pat, clean_query):
+            found_quals.append(q.lower())
+            clean_query = re.sub(q_pat, '', clean_query)
+            
+    found_langs = []
+    for disp_name, code in LANGUAGES.items():
+        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
+        if re.search(c_pat, clean_query):
+            found_langs.append(code.lower())
+            clean_query = re.sub(c_pat, '', clean_query)
+            
+    db_query = re.sub(r"\s+", " ", clean_query).strip()
+    if season_match:
+        db_query += f" s{season_match.group(1).zfill(2)}"
+    for q in found_quals:
+        db_query += f" {q}"
+    for l in found_langs:
+        db_query += f" {l}"
+        
+    db_query = re.sub(r"\s+", " ", db_query).strip()
+    BUTTONS[key] = db_query
+    # --------------------------
     
     req = query.from_user.id
     chat_id = query.message.chat.id
-    message = query.message
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...", show_alert=True,)
+            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
     except:
         pass
         
-    files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+    files, offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
     
-    # --- STRICT POST-DB FILTERING TO SEPARATE QUALITIES ---
-    if qual != "homepage":
-        files = [f for f in files if qual.lower() in getattr(f, 'file_name', '').lower()]
-        
-    # Enforce volume if it's already selected
-    season_match = re.search(r'\b(?:s|season|vol)\s?0*(\d+)\b', search.lower())
-    if season_match:
-        s_pat = r'\b(?:s|season|vol)\s?0*' + season_match.group(1) + r'\b'
-        files = [f for f in files if re.search(s_pat, getattr(f, 'file_name', '').lower(), re.IGNORECASE)]
+    # --- UNIVERSAL STRICT POST-DB FILTERING ---
+    if files:
+        if season_match:
+            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+        for q in found_quals:
+            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
+        for l in found_langs:
+            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
 
     total_results = len(files)
 
     if not files:
-        BUTTONS[key] = old_search  # Reverts state so buttons don't break!
-        await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
-        return
+        BUTTONS[key] = old_search  
+        return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
+
     temp.GETALL[key] = files
+    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
+
     settings = await get_settings(message.chat.id)
     if settings.get('button'):
         btn = [
@@ -696,39 +722,79 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
 @Client.on_callback_query(filters.regex(r"^fl#"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key = query.data.split("#")
-    curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
     
-    # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
     old_search = search
     search = search.replace("_", " ")
     
     if lang == "homepage":
-        pass
+        raw_search = search
     elif lang in search:
-        # Removes the language if you click it again (Toggles OFF)
-        search = search.replace(lang, "").strip()
-        search = re.sub(r"\s+", " ", search)
+        raw_search = search.replace(lang, "").strip()
     else:
-        # Adds the new language
-        search = f"{search} {lang}".strip()
+        raw_search = f"{search} {lang}".strip()
+
+    # --- UNIVERSAL ORDERING ---
+    clean_query = raw_search.lower()
+    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
+    if season_match:
+        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
         
-    BUTTONS[key] = search
+    found_quals = []
+    for q in QUALITIES:
+        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
+        if re.search(q_pat, clean_query):
+            found_quals.append(q.lower())
+            clean_query = re.sub(q_pat, '', clean_query)
+            
+    found_langs = []
+    for disp_name, code in LANGUAGES.items():
+        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
+        if re.search(c_pat, clean_query):
+            found_langs.append(code.lower())
+            clean_query = re.sub(c_pat, '', clean_query)
+            
+    db_query = re.sub(r"\s+", " ", clean_query).strip()
+    if season_match:
+        db_query += f" s{season_match.group(1).zfill(2)}"
+    for q in found_quals:
+        db_query += f" {q}"
+    for l in found_langs:
+        db_query += f" {l}"
+        
+    db_query = re.sub(r"\s+", " ", db_query).strip()
+    BUTTONS[key] = db_query
+    # --------------------------
     
     req = query.from_user.id
     chat_id = query.message.chat.id
-    message = query.message
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ,\nʀᴇǫᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...", show_alert=True,)
+            return await query.answer(f"⚠️ ʜᴇʟʟᴏ {query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ʙᴏᴏᴋ ʀᴇǫᴜᴇꜱᴛ!", show_alert=True)
     except:
         pass
 
-    files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+    files, offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
+    
+    # --- UNIVERSAL STRICT POST-DB FILTERING ---
+    if files:
+        if season_match:
+            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+        for q in found_quals:
+            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
+        for l in found_langs:
+            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
+
+    total_results = len(files)
+
     if not files:
-        await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
-        return
+        BUTTONS[key] = old_search
+        return await query.answer("🚫 ɴᴏ ꜰɪʟᴇꜱ ᴡᴇʀᴇ ꜰᴏᴜɴᴅ 🚫", show_alert=1)
+
     temp.GETALL[key] = files
+    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
+
     settings = await get_settings(message.chat.id)
     if settings.get('button'):
         btn = [
@@ -877,50 +943,79 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
 async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     _, season_tag, key = query.data.split("#")
     
-    # Use stacked filters instead of resetting
     search = BUTTONS.get(key) or FRESH.get(key)
     old_search = search
     search = search.replace("_", " ")
     season_tag = season_tag.lower()
     
     if season_tag == "homepage":
-        search_final = search
+        raw_search = search
     else:
-        search = re.sub(r'(?i)\b(?:s|season|vol)\s*0*\d+(?!\d)', '', search).strip()
-        search = re.sub(r"\s+", " ", search)
-        search_final = f"{search} {season_tag}"
+        # Swap season safely
+        raw_search = re.sub(r'(?i)\b(?:s|season|vol)\s*0*\d+(?!\d)', '', search).strip()
+        raw_search = f"{raw_search} {season_tag}"
 
-    BUTTONS[key] = search_final
+    # --- UNIVERSAL ORDERING ---
+    clean_query = raw_search.lower()
+    season_match = re.search(r'\b(?:s|season|vol)\s*0*(\d+)(?!\d)', clean_query)
+    if season_match:
+        clean_query = re.sub(r'\b(?:s|season|vol)\s*0*\d+(?!\d)', '', clean_query)
+        
+    found_quals = []
+    for q in QUALITIES:
+        q_pat = r'\b' + re.escape(q.lower()) + r'\b'
+        if re.search(q_pat, clean_query):
+            found_quals.append(q.lower())
+            clean_query = re.sub(q_pat, '', clean_query)
+            
+    found_langs = []
+    for disp_name, code in LANGUAGES.items():
+        c_pat = r'\b' + re.escape(code.lower()) + r'\b'
+        if re.search(c_pat, clean_query):
+            found_langs.append(code.lower())
+            clean_query = re.sub(c_pat, '', clean_query)
+            
+    db_query = re.sub(r"\s+", " ", clean_query).strip()
+    if season_match:
+        db_query += f" s{season_match.group(1).zfill(2)}"
+    for q in found_quals:
+        db_query += f" {q}"
+    for l in found_langs:
+        db_query += f" {l}"
+        
+    db_query = re.sub(r"\s+", " ", db_query).strip()
+    BUTTONS[key] = db_query
+    # --------------------------
 
     try:
         if int(query.from_user.id) not in [query.message.reply_to_message.from_user.id, 0]:
             return await query.answer("⚠️ Not your request", show_alert=True)
-    except Exception:
+    except:
         pass
 
     chat_id = query.message.chat.id
     req = query.from_user.id
-    files, n_offset, total_results = await get_search_results(chat_id, search_final, offset=0, filter=True)
+    files, n_offset, total_results = await get_search_results(chat_id, db_query, offset=0, filter=True)
     
-    # --- STRICT POST-DB FILTERING TO SEPARATE VOLUMES ---
-    if season_tag != "homepage":
-        season_number = int(season_tag[1:])
-        s_pattern = r'(?i)\b(?:s|season|vol)\s*0*' + str(season_number) + r'(?!\d)'
-        files = [f for f in files if re.search(s_pattern, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+    # --- UNIVERSAL STRICT POST-DB FILTERING ---
+    if files:
+        if season_match:
+            s_pat = r'(?i)\b(?:s|season|vol)\s*0*' + season_match.group(1) + r'(?!\d)'
+            files = [f for f in files if re.search(s_pat, str(getattr(f, 'file_name', '')), re.IGNORECASE)]
+        for q in found_quals:
+            files = [f for f in files if q in str(getattr(f, 'file_name', '')).lower()]
+        for l in found_langs:
+            files = [f for f in files if l in str(getattr(f, 'file_name', '')).lower()]
 
-            
-    # Enforce quality if it's already selected
-    for q in QUALITIES:
-        if q.lower() in search_final.lower():
-            files = [f for f in files if q.lower() in getattr(f, 'file_name', '').lower()]
-                
     total_results = len(files)
 
     if not files:
-        BUTTONS[key] = old_search  # Reverts state so buttons don't break!
+        BUTTONS[key] = old_search  
         return await query.answer("🚫 ᴛʜɪꜱ ᴄᴏᴍʙɪɴᴀᴛɪᴏɴ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ 🚫", show_alert=True)
 
     temp.GETALL[key] = files
+    # -> KEEP YOUR BUTTON GENERATION CODE BELOW THIS LINE <-
+
     settings = await get_settings(chat_id)
     btn: list[list[InlineKeyboardButton]] = []
     if settings.get("button"):
