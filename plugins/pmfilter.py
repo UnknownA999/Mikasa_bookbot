@@ -52,14 +52,13 @@ async def fetch_database_options(chat_id, search_query):
     for file in files:
         # Converts to string to prevent NoneType crashes!
         name = str(getattr(file, 'file_name', '')).lower()
-        
         for quality in QUALITIES:
             if quality.lower() in name:
                 available["qualities"].add(quality)
-        
-        for disp_name, code in LANGUAGES.items():
-            if code.lower() in name:
-                available["languages"].add(disp_name)
+                
+                for disp_name, code in LANGUAGES.items():
+                    if code.lower() in name:
+                        available["languages"].add(disp_name)
         
         # Robust regex for S04, Vol 4, Season 4, S04E06
         season_match = re.search(r'(?i)\b(?:s|season|vol)\s*0*(\d+)(?!\d)', name)
