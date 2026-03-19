@@ -4,7 +4,7 @@ import re
 import base64
 from pyrogram.file_id import FileId
 from typing import Dict, List
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -12,7 +12,6 @@ from marshmallow import ValidationError
 from info import *
 from utils import get_settings, save_group_settings
 from datetime import datetime, timedelta
-import logging
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,26 @@ client2 = AsyncIOMotorClient(DATABASE_URI2)
 db2 = client2[DATABASE_NAME]
 instance2 = Instance.from_db(db2)
 
+# --- MEMORY FIX: LRU CACHE ---
+class LRUCache:
+    def __init__(self, capacity=2000):
+        self.cache = OrderedDict()
+        self.capacity = capacity
+
+    def contains(self, key):
+        if key in self.cache:
+            self.cache.move_to_end(key)
+            return True
+        return False
+
+    def add(self, key):
+        self.cache[key] = True
+        if len(self.cache) > self.capacity:
+            self.cache.popitem(last=False)
+
+# This will hold the fingerprints of files we've already seen
+duplicate_cache = LRUCache(capacity=2000) 
+# -----------------------------
 
 @instance.register
 class Media(Document):
@@ -42,8 +61,8 @@ class Media(Document):
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
-    quality = fields.StrField(allow_none=True) # --- NEW ---
-    season = fields.StrField(allow_none=True)  # --- NEW ---
+    quality = fields.StrField(allow_none=True) 
+    season = fields.StrField(allow_none=True)  
 
     class Meta:
         indexes = ("$file_name",)
@@ -59,8 +78,8 @@ class Media2(Document):
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
     caption = fields.StrField(allow_none=True)
-    quality = fields.StrField(allow_none=True) # --- NEW ---
-    season = fields.StrField(allow_none=True)  # --- NEW ---
+    quality = fields.StrField(allow_none=True) 
+    season = fields.StrField(allow_none=True)  
 
     class Meta:
         indexes = ("$file_name",)
@@ -91,7 +110,7 @@ async def check_db_size(db):
 
 
 async def save_file(media):
-    """Save file in database, with detailed logging."""
+    """Save file in database, with in-memory caching for memory efficiency."""
     file_id, file_ref = unpack_new_file_id(media.file_id)
     
     if not file_id or file_id is None or file_id == "None":
@@ -101,6 +120,13 @@ async def save_file(media):
     file_name = re.sub(
         r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(media.file_name)
     )
+
+    # --- MEMORY OPTIMIZATION: Check Local Cache First ---
+    cache_key = f"{file_name}_{media.file_size}"
+    if duplicate_cache.contains(cache_key):
+        logger.info(f"[SKIP-CACHE] '{file_name}' already skipped recently.")
+        return False, 0
+    # --------------------------------------------------
 
     # --- SMART DUPLICATE CHECK ---
     search_query = {
@@ -112,10 +138,12 @@ async def save_file(media):
     
     if await Media.count_documents(search_query, limit=1):
         logger.info(f"[SKIP] '{file_name}' (or identical content) already in Primary DB.")
+        duplicate_cache.add(cache_key) 
         return False, 0
         
     if MULTIPLE_DB and await Media2.count_documents(search_query, limit=1):
         logger.info(f"[SKIP] '{file_name}' (or identical content) already in Secondary DB.")
+        duplicate_cache.add(cache_key) 
         return False, 0
     # -----------------------------
 
@@ -142,25 +170,33 @@ async def save_file(media):
             file_type=media.file_type,
             mime_type=media.mime_type,
             caption=(media.caption.html if media.caption and INDEX_CAPTION else None),
-            quality=getattr(media, 'quality', 'Standard'), # --- NEW ---
-            season=getattr(media, 'season', 'N/A'),        # --- NEW ---
+            quality=getattr(media, 'quality', 'Standard'),
+            season=getattr(media, 'season', 'N/A'),       
         )
     except ValidationError as e:
         logger.exception(f"[VALIDATION ERROR] '{file_name}' → {e}")
         return False, 2
     try:
         await record.commit()
+        duplicate_cache.add(cache_key)
     except DuplicateKeyError:
         logger.info(
             f"[SKIP] DuplicateKey: '{file_name}' already exists in {target_db} DB."
         )
+        duplicate_cache.add(cache_key)
         return False, 0
     except Exception as e:
         logger.exception(
             f"[ERROR] Failed commit of '{file_name}' to {target_db} DB.", exc_info=e
         )
         return False, 3
+        
     logger.info(f"[SUCCESS] '{file_name}' saved to {target_db} DB.")
+    
+    # --- MEMORY CLEANUP ---
+    del search_query
+    del record
+    
     return True, 1
 
 async def get_search_results(chat_id, query, file_type=None, max_results=None, offset=0, filter=False):
@@ -174,14 +210,12 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
                 settings = await get_settings(int(chat_id))
                 max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
 
-    # This is the new "middle-ground" regex logic for speed and flexibility
     if isinstance(query, list):
         raw_patterns = []
         for q in query:
             q = q.strip()
             if q:
                 if ' ' in q:
-                    # Order-Independent: Matches if ALL words exist in the filename, in ANY order
                     words = [re.escape(word) for word in q.split()]
                     pattern = "^" + "".join([f"(?=.*{w})" for w in words])
                     raw_patterns.append(pattern)
@@ -201,7 +235,6 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
             return [], None, 0
             
         if ' ' in query:
-            # Order-Independent: Matches if ALL words exist in the filename, in ANY order
             words = [re.escape(word) for word in query.split()]
             raw_pattern = "^" + "".join([f"(?=.*{w})" for w in words])
         else:
@@ -212,7 +245,6 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
         except re.error:
             return [], None, 0
 
-
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": [{"file_name": regex}, {"caption": regex}]}
         else:
@@ -221,7 +253,6 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
     if file_type:
         filter_mongo["file_type"] = file_type
     
-    # The rest of the function remains the same, using parallel queries.
     if ULTRA_FAST_MODE:
         limit = max_results + 1
         find_tasks = [Media.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit)]
