@@ -1497,7 +1497,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
             InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
         ],[
-            InlineKeyboardButton('📤 ᴄᴏɴᴛʀɪʙᴜᴛᴇ', url='https://t.me/contribution_grp'),
+            InlineKeyboardButton('ᴄʜᴀɴɴᴇʟ', url='https://t.me/Mikasa_Network'),
             InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
         ],[
             InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
