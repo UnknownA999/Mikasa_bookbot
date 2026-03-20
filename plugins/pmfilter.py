@@ -71,7 +71,7 @@ async def fetch_database_options(chat_id, search_query):
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
     # ADD THIS CHECK HERE
-    if message.chat.id == -1003723654216 and message.message_thread_id == 58:
+    if message.chat.id == -1003752741465 and message.message_thread_id == 2530:
         return 
 
     # The rest of your code remains exactly the same...
