@@ -239,20 +239,50 @@ async def start(client, message):
             target_channel = -1003782307099 # Your Data Media Channel
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
+            
+            # List to keep track of the files we send
+            sent_messages = []
+            
             for msg_id in range(start_id, end_id + 1):
                 try:
-                    await client.copy_message(
+                    # Copy message and save the result to our list
+                    msg = await client.copy_message(
                         chat_id=message.from_user.id,
                         from_chat_id=target_channel,
                         message_id=msg_id
                     )
+                    sent_messages.append(msg)
                     await asyncio.sleep(0.5) # Prevents Telegram flood limits
                 except Exception:
                     pass # Silently skips deleted messages or text posts
-            await status_msg.edit("✅ **All files sent successfully!**")
+            
+            await status_msg.delete() # Remove the "Sending..." message
+            
+            # Auto-Delete Logic
+            if sent_messages:
+                # Send the warning message using your bot's script
+                k = await client.send_message(
+                    chat_id=message.from_user.id, 
+                    text=script.DEL_MSG.format(get_time(DELETE_TIME)), 
+                    parse_mode=enums.ParseMode.HTML
+                )
+                
+                # Wait for your configured DELETE_TIME
+                await asyncio.sleep(DELETE_TIME)
+                
+                # Delete all the files
+                for msg in sent_messages:
+                    try:
+                        await msg.delete()
+                    except:
+                        pass
+                
+                # Update the warning message
+                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
             return
         except Exception as e:
             return await message.reply(f"❌ **Error processing batch:** {e}")
+
 
     
     data = message.command[1]
