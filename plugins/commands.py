@@ -232,12 +232,28 @@ async def start(client, message):
         )
         return  
     
-    if len(message.command) == 2 and message.command[1].startswith('getfile'):
-        movies = message.command[1].split("-", 1)[1] 
-        movie = movies.replace('-',' ')
-        message.text = movie 
-        await auto_filter(client, message) 
-        return
+    if len(message.command) == 2 and message.command[1].startswith('batch_'):
+        try:
+            _, start_id, end_id = message.command[1].split("_")
+            start_id, end_id = int(start_id), int(end_id)
+            target_channel = -1003782307099 # Your Data Media Channel
+            
+            status_msg = await message.reply("🚀 **Sending your files, please wait...**")
+            for msg_id in range(start_id, end_id + 1):
+                try:
+                    await client.copy_message(
+                        chat_id=message.from_user.id,
+                        from_chat_id=target_channel,
+                        message_id=msg_id
+                    )
+                    await asyncio.sleep(0.5) # Prevents Telegram flood limits
+                except Exception:
+                    pass # Silently skips deleted messages or text posts
+            await status_msg.edit("✅ **All files sent successfully!**")
+            return
+        except Exception as e:
+            return await message.reply(f"❌ **Error processing batch:** {e}")
+
     
     data = message.command[1]
     try:
