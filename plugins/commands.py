@@ -342,6 +342,10 @@ async def start(client, message):
             # Checks if 1800 seconds (30 minutes) have passed since their last verification
             time_expired = await db.use_second_shortener(user_id, 1800) 
             
+            # --- FIX: Define these as False so the link generator doesn't crash! ---
+            is_second_shortener = False
+            is_third_shortener = False
+            
             # Triggers verification if they aren't verified at all, OR if 30 mins have passed
             if settings.get("is_verify", IS_VERIFY) and (not user_verified or time_expired):
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -351,20 +355,20 @@ async def start(client, message):
                     verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
                 else:
                     verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
-                if is_third_shortener:
-                    howtodownload = settings.get('tutorial_3', TUTORIAL_3)
-                else:
-                    howtodownload = settings.get('tutorial_2', TUTORIAL_2) if is_second_shortener else settings.get('tutorial', TUTORIAL)
+                
+                # Always use the first tutorial since we only have 1 shortener
+                howtodownload = settings.get('tutorial', TUTORIAL)
+                
                 buttons = [[
                     InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 reply_markup=InlineKeyboardMarkup(buttons)
-                if await db.user_verified(user_id): 
-                    msg = script.THIRDT_VERIFICATION_TEXT
-                else:            
-                    msg = script.SECOND_VERIFICATION_TEXT if is_second_shortener else script.VERIFICATION_TEXT
+                
+                # Always use the first verification text
+                msg = script.VERIFICATION_TEXT
+                
                 n=await m.reply_text(
                     text=msg.format(message.from_user.mention),
                     protect_content = True,
@@ -378,6 +382,7 @@ async def start(client, message):
         except Exception as e:
             print(f"Error In Verification - {e}")
             pass
+
 
     # Now, await the file details task
     files_ = await file_details_task
