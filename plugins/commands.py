@@ -227,11 +227,78 @@ async def start(client, message):
         )
         return  
     
+    # --- BATCH VERIFICATION RECEIVER ---
+    if len(message.command) == 2 and message.command[1].startswith('batchcopy_'):
+        _, userid, verify_id, start_id, end_id = message.command[1].split("_")
+        user_id = int(userid)
+        
+        verify_id_info = await db.get_verify_id_info(user_id, verify_id)
+        if not verify_id_info or verify_id_info["verified"]:
+            return await message.reply("<b>ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ ᴛʀʏ ᴀɢᴀɪɴ...</b>")  
+        
+        ist_timezone = pytz.timezone('Asia/Kolkata')
+        current_time = datetime.now(tz=ist_timezone)
+        
+        # Resets the 30-minute timer for the user
+        await db.update_notcopy_user(user_id, {"last_verified": current_time})
+        await db.update_verify_id_info(user_id, verify_id, {"verified":True})
+        
+        # Generates the final, unlocked batch link
+        verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=batch_{start_id}_{end_id}"
+        
+        btn = [[
+            InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇꜱ ✅", url=verifiedfiles),
+        ]]
+        reply_markup=InlineKeyboardMarkup(btn)
+        dlt=await message.reply_photo(
+            photo=(VERIFY_IMG),
+            caption=script.VERIFY_COMPLETE_TEXT.format(message.from_user.mention),
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+        await asyncio.sleep(300)
+        await dlt.delete()
+        return         
+
+    # --- BATCH DELIVERY & VERIFICATION CHECK ---
     if len(message.command) == 2 and message.command[1].startswith('batch_'):
         try:
             _, start_id, end_id = message.command[1].split("_")
             start_id, end_id = int(start_id), int(end_id)
             target_channel = -1003782307099 # Your Data Media Channel
+            
+            # --- 30-MIN BATCH VERIFICATION LOCK ---
+            user_id = message.from_user.id
+            if not await db.has_premium_access(user_id):
+                user_verified = await db.is_user_verified(user_id)
+                time_expired = await db.use_second_shortener(user_id, 1800)
+                
+                # FORCE VERIFICATION: strictly enforces the 30-min loop
+                if not user_verified or time_expired:
+                    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                    await db.create_verify_id(user_id, verify_id)
+                    
+                    # Generates shortlink pointing to batchcopy
+                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=batchcopy_{user_id}_{verify_id}_{start_id}_{end_id}", 0, False, False)
+                    
+                    buttons = [[
+                        InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                    ],[
+                        InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
+                    ]]
+                    reply_markup=InlineKeyboardMarkup(buttons)
+                    
+                    n=await message.reply_text(
+                        text=script.VERIFICATION_TEXT.format(message.from_user.mention),
+                        protect_content = True,
+                        reply_markup=reply_markup,
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                    await asyncio.sleep(300) 
+                    await n.delete()
+                    await message.delete()
+                    return
+            # --------------------------------
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
             
@@ -240,40 +307,31 @@ async def start(client, message):
             
             for msg_id in range(start_id, end_id + 1):
                 try:
-                    # Copy message and save the result to our list
                     msg = await client.copy_message(
                         chat_id=message.from_user.id,
                         from_chat_id=target_channel,
                         message_id=msg_id
                     )
                     sent_messages.append(msg)
-                    await asyncio.sleep(0.5) # Prevents Telegram flood limits
+                    await asyncio.sleep(0.5) 
                 except Exception:
-                    pass # Silently skips deleted messages or text posts
+                    pass 
             
-            await status_msg.delete() # Remove the "Sending..." message
+            await status_msg.delete()
             
-            # Auto-Delete Logic
             if sent_messages:
-                # Send the warning message using your bot's script
                 k = await client.send_message(
                     chat_id=message.from_user.id, 
                     text=script.DEL_MSG.format(get_time(DELETE_TIME)), 
                     parse_mode=enums.ParseMode.HTML
                 )
-                
-                # Wait for your configured DELETE_TIME
                 await asyncio.sleep(DELETE_TIME)
-                
-                # Delete all the files
                 for msg in sent_messages:
                     try:
                         await msg.delete()
                     except:
                         pass
-                
-                # Update the warning message
-                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
+                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄꜱᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
             return
         except Exception as e:
             return await message.reply(f"❌ **Error processing batch:** {e}")
