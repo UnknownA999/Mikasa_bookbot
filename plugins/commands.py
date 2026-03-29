@@ -388,7 +388,6 @@ async def start(client, message):
     user_id = message.from_user.id
     if not await db.has_premium_access(user_id):
         try:
-            # 1. Safely handle the group ID if they came from a direct channel link
             try:
                 g_id = int(grp_id) if grp_id else 0
             except:
@@ -396,11 +395,9 @@ async def start(client, message):
                 
             settings = await get_settings(g_id)
             
-            # 2. Check Verification Status & 30-Minute Timer
             user_verified = await db.is_user_verified(user_id)
             time_expired = await db.use_second_shortener(user_id, 1800) 
             
-            # 3. Force Verification if needed
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 await db.create_verify_id(user_id, verify_id)
@@ -417,7 +414,7 @@ async def start(client, message):
                 buttons = [[
                     InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
-                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
+                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url="https://t.me/scout_regimant/8")
                 ]]
                 
                 await message.reply_text(
@@ -426,7 +423,7 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
-                return # <-- THIS IS THE MAGIC LOCK. It stops the bot from reading the file-sending code below!
+                return 
                 
         except Exception as e:
             logger.error(f"Single File Verification Error: {e}")
