@@ -341,8 +341,9 @@ async def start(client, message):
             is_second_shortener = False
             is_third_shortener = False
             
-            # Triggers verification if they aren't verified at all, OR if 30 mins have passed
-            if settings.get("is_verify", IS_VERIFY) and (not user_verified or time_expired):
+            # FORCE VERIFICATION: Ignores missing Group IDs and strictly enforces the 30-min loop
+            if not user_verified or time_expired:
+
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 await db.create_verify_id(user_id, verify_id)
                 temp.VERIFICATIONS[user_id] = grp_id
