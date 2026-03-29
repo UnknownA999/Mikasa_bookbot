@@ -431,7 +431,7 @@ async def start(client, message):
         except Exception as e:
             logger.error(f"Single File Verification Error: {e}")
 
-                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
+                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=https://t.me/scout_regimant/8)
                 ]]
                 reply_markup=InlineKeyboardMarkup(buttons)
                 
