@@ -385,37 +385,52 @@ async def start(client, message):
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
 
-    user_id = m.from_user.id
+    user_id = message.from_user.id
     if not await db.has_premium_access(user_id):
         try:
-            grp_id = int(grp_id)
-            settings = await get_settings(grp_id)
+            # 1. Safely handle the group ID if they came from a direct channel link
+            try:
+                g_id = int(grp_id) if grp_id else 0
+            except:
+                g_id = 0
+                
+            settings = await get_settings(g_id)
             
+            # 2. Check Verification Status & 30-Minute Timer
             user_verified = await db.is_user_verified(user_id)
-            # Checks if 1800 seconds (30 minutes) have passed since their last verification
             time_expired = await db.use_second_shortener(user_id, 1800) 
             
-            # --- FIX: Define these as False so the link generator doesn't crash! ---
-            is_second_shortener = False
-            is_third_shortener = False
-            
-            # FORCE VERIFICATION: Ignores missing Group IDs and strictly enforces the 30-min loop
+            # 3. Force Verification if needed
             if not user_verified or time_expired:
-
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 await db.create_verify_id(user_id, verify_id)
-                temp.VERIFICATIONS[user_id] = grp_id
-                if message.command[1].startswith('allfiles'):
-                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
-                else:
-                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}", grp_id, is_second_shortener, is_third_shortener)
+                temp.VERIFICATIONS[user_id] = g_id
                 
-                # Always use the first tutorial since we only have 1 shortener
-                howtodownload = settings.get('tutorial', TUTORIAL)
+                if message.command[1].startswith('allfiles'):
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}"
+                else:
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}"
+                
+                verify = await get_shortlink(verify_url, g_id, False, False)
+                howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
                 buttons = [[
                     InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
+                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
+                ]]
+                
+                await message.reply_text(
+                    text=script.VERIFICATION_TEXT.format(message.from_user.mention),
+                    protect_content=False,
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return # <-- THIS IS THE MAGIC LOCK. It stops the bot from reading the file-sending code below!
+                
+        except Exception as e:
+            logger.error(f"Single File Verification Error: {e}")
+
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 reply_markup=InlineKeyboardMarkup(buttons)
