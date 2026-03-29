@@ -410,11 +410,13 @@ async def start(client, message):
                 
                 verify = await get_shortlink(verify_url, g_id, False, False)
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
+                
                 buttons = [[
                     InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url="https://t.me/scout_regimant/8")
                 ]]
+                
                 await message.reply_text(
                     text=script.VERIFICATION_TEXT.format(message.from_user.mention),
                     protect_content=False,
@@ -426,37 +428,9 @@ async def start(client, message):
         except Exception as e:
             logger.error(f"Single File Verification Error: {e}")
 
-                buttons = [
-                    [
-                        InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
-                    ],
-                    [
-                        InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url="https://t.me/scout_regimant/8")
-                    ]
-                ]
-
-                reply_markup=InlineKeyboardMarkup(buttons)
-                
-                # Always use the first verification text
-                msg = script.VERIFICATION_TEXT
-                
-                n=await m.reply_text(
-                    text=msg.format(message.from_user.mention),
-                    protect_content = True,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML
-                )
-                await asyncio.sleep(300) 
-                await n.delete()
-                await m.delete()
-                return
-        except Exception as e:
-            print(f"Error In Verification - {e}")
-            pass
-
-
     # Now, await the file details task
     files_ = await file_details_task
+
 
     if data.startswith("allfiles"):
         try:
