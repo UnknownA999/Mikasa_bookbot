@@ -410,13 +410,11 @@ async def start(client, message):
                 
                 verify = await get_shortlink(verify_url, g_id, False, False)
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
-                
                 buttons = [[
                     InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url="https://t.me/scout_regimant/8")
                 ]]
-                
                 await message.reply_text(
                     text=script.VERIFICATION_TEXT.format(message.from_user.mention),
                     protect_content=False,
