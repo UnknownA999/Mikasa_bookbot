@@ -238,3 +238,114 @@ async def junk_clear_group(bot, message):
             outfile.write(failed)
         await message.reply_document('junk.txt', caption=f"Completed:\nCompleted in {time_taken} seconds.\n\nTotal Groups {total_groups}\nCompleted: {done} / {total_groups}\nDeleted: {deleted}")
         os.remove("junk.txt")
+
+# ==========================================
+# 🚀 NEW AD MONETIZATION COMMANDS BELOW 🚀
+# ==========================================
+
+@Client.on_message(filters.command("ad_broadcast") & filters.user(ADMINS) & filters.reply)
+async def ad_broadcast(bot, message):
+    """
+    Sends an ad to all users and captures their message_ids to database 
+    so they can be cleanly deleted later. 
+    Usage: Reply to an ad with /ad_broadcast [time] (e.g. /ad_broadcast 1_day)
+    """
+    if lock.locked():
+        return await message.reply("⚠️ Another broadcast is in progress. Please wait...")
+    
+    args = message.text.split()
+    duration = args[1] if len(args) > 1 else "lifetime"
+    b_msg = message.reply_to_message
+    
+    users = [user async for user in await db.get_all_users()]
+    total_users = len(users)
+    
+    status_msg = await message.reply_text(f"📤 **Broadcasting Ad...**\nTarget Duration: {duration}")
+    
+    broadcast_id = f"ad_{int(time.time())}"
+    successful_deliveries = []
+    success = fail = 0
+    
+    async with lock:
+        for user in users:
+            try:
+                # Copy message guarantees exact ad replica & returns the new message object
+                sent_msg = await b_msg.copy(chat_id=int(user["id"]))
+                successful_deliveries.append({
+                    "chat_id": int(user["id"]),
+                    "message_id": sent_msg.id
+                })
+                success += 1
+                
+            except FloodWait as e:
+                # Telegram's strict rate limit protection
+                await asyncio.sleep(e.value)
+                sent_msg = await b_msg.copy(chat_id=int(user["id"]))
+                successful_deliveries.append({
+                    "chat_id": int(user["id"]),
+                    "message_id": sent_msg.id
+                })
+                success += 1
+                
+            except Exception:
+                fail += 1
+            
+            # Absolute magic delay to keep bot flawlessly unbanned
+            await asyncio.sleep(0.05) 
+            
+            if (success + fail) % 50 == 0:
+                await status_msg.edit(f"📣 **Ad Broadcast Progress:**\n✅ Sent: {success}\n❌ Failed: {fail}\nTotal: {total_users}")
+
+    # Store IDs in MongoDB so /unbroadcast can find them later
+    if successful_deliveries:
+        await db.db["active_ads"].insert_one({
+            "broadcast_id": broadcast_id,
+            "duration": duration,
+            "timestamp": int(time.time()),
+            "messages": successful_deliveries
+        })
+        
+    await status_msg.edit(f"📊 **Ad Broadcast Complete**\nID: `{broadcast_id}`\nDuration: {duration}\n✅ Success: {success}\n❌ Failed: {fail}")
+
+
+@Client.on_message(filters.command("unbroadcast") & filters.user(ADMINS))
+async def unbroadcast_ad(bot, message):
+    """
+    Cleans up old ads to prevent bot spam.
+    Usage: /unbroadcast last (deletes the most recent ad)
+           /unbroadcast all (deletes all active ads in DB)
+    """
+    args = message.text.split()
+    if len(args) < 2:
+        return await message.reply("⚠️ Please specify a target: `/unbroadcast last` or `/unbroadcast all`")
+    
+    target = args[1].lower()
+    status_msg = await message.reply("🧹 **Gathering old ads to delete...**")
+    
+    # Fetch target ads from database
+    if target == "all":
+        target_broadcasts = await db.db["active_ads"].find({}).to_list(length=None)
+    elif target == "last":
+        target_broadcasts = await db.db["active_ads"].find({}).sort("timestamp", -1).limit(1).to_list(length=None)
+    else:
+        return await status_msg.edit("❌ Invalid target. Use 'last' or 'all'.")
+
+    if not target_broadcasts:
+        return await status_msg.edit("❌ No active ads found in the database.")
+
+    deleted_count = 0
+    for ad in target_broadcasts:
+        for msg_data in ad['messages']:
+            try:
+                await bot.delete_messages(chat_id=msg_data['chat_id'], message_ids=msg_data['message_id'])
+                deleted_count += 1
+            except Exception:
+                # User might have manually deleted the chat history, safely ignore
+                pass 
+                
+            await asyncio.sleep(0.05) # Rate limit protection for deletions
+            
+        # Clear the completed broadcast from the database
+        await db.db["active_ads"].delete_one({"_id": ad["_id"]})
+        
+    await status_msg.edit(f"🧹 **Unbroadcast Complete!**\nSuccessfully deleted `{deleted_count}` promotional messages.")
