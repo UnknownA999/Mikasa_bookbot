@@ -349,3 +349,34 @@ async def unbroadcast_ad(bot, message):
         await db.db["active_ads"].delete_one({"_id": ad["_id"]})
         
     await status_msg.edit(f"🧹 **Unbroadcast Complete!**\nSuccessfully deleted `{deleted_count}` promotional messages.")
+
+@Client.on_message(filters.command("export_ids") & filters.user(ADMINS))
+async def export_user_ids(bot, message):
+    """
+    Generates a .txt file of all User IDs for Telega.io verification.
+    """
+    sts = await message.reply("⏳ **Generating User ID list for Telega.io...**")
+    file_name = "mikasa_user_ids.txt"
+    
+    try:
+        # We use the existing get_all_users() from your db object
+        users = await db.get_all_users()
+        
+        with open(file_name, "w") as f:
+            async for user in users:
+                # Standard Telega.io format: One ID per line
+                f.write(f"{user['id']}\n")
+        
+        await message.reply_document(
+            document=file_name,
+            caption="✅ **Export Complete!**\nUpload this file to Telega.io for verification."
+        )
+        
+        # Cleanup file from Render server
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        await sts.delete()
+        
+    except Exception as e:
+        logging.exception("Failed to export IDs")
+        await sts.edit(f"❌ **Error:** `{e}`")
