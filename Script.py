@@ -309,7 +309,7 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 
 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ꜰɪʟᴇs, ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ.</i></b>"""
 
-        LOG_TEXT_P = """#Premium_Log
+    LOG_TEXT_P = """#Premium_Log
 👤 <b>User:</b> {}
 🆔 <b>ID:</b> <code>{}</code>
 ⚡ <b>Action:</b> Premium status updated."""
@@ -319,6 +319,7 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 ✅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ᴄᴏᴍᴘʟᴇᴛᴇᴅ!
 
 ʏᴏᴜ ɴᴏᴡ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴅᴏᴡɴʟᴏᴀᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 30 ᴍɪɴᴜᴛᴇꜱ. ᴇɴᴊᴏʏ!</i></b>"""
+
 
     SECOND_VERIFICATION_TEXT = """<b><i>👋 ʜᴇʏ {},
 
