@@ -310,8 +310,8 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ꜰɪʟᴇs, ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ.</i></b>"""
 
     LOG_TEXT_P = """#Premium_Log
-👤 <b>User:</b> {}
-🆔 <b>ID:</b> <code>{}</code>
+👤 <b>User:</b> {1}
+🆔 <b>ID:</b> <code>{0}</code>
 ⚡ <b>Action:</b> Premium status updated."""
 
     VERIFY_COMPLETE_TEXT = """<b><i>👋 ʜᴇʏ {},
