@@ -309,10 +309,10 @@ Support ☕︎› :<a href=https://t.me/Mikasa_animexbot>Mikasa</a>\n """
 
 ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ꜰɪʟᴇs, ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ.</i></b>"""
 
-    LOG_TEXT_P = """#Verification_Log
+    LOG_TEXT_P = """#New_User_Alert
 👤 <b>User:</b> {1}
 🆔 <b>ID:</b> <code>{0}</code>
-⚡ <b>Action:</b> Completed URL Verification."""
+⚡ <b>Action:</b> Started the bot for the first time."""
     VERIFY_COMPLETE_TEXT = """<b><i>👋 ʜᴇʏ {},
 
 ✅ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ᴄᴏᴍᴘʟᴇᴛᴇᴅ!
