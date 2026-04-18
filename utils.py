@@ -374,19 +374,32 @@ async def search_gagala(text):
 
 async def get_shortlink(link, grp_id, is_second_shortener=False, is_third_shortener=False):
     settings = await get_settings(grp_id)
+    
     if is_third_shortener:             
-        api, site = settings['api_three'], settings['shortner_three']
+        api, site = settings.get('api_three', ''), settings.get('shortner_three', '')
+    elif is_second_shortener:
+        api, site = settings.get('api_two', ''), settings.get('shortner_two', '')
     else:
-        if is_second_shortener:
-            api, site = settings['api_two'], settings['shortner_two']
-        else:
-            api, site = settings['api'], settings['shortner']
+        api, site = settings.get('api', ''), settings.get('shortner', '')
+
+    # ---> THE BYPASS FIX <---
+    # If the API or Site variables are empty, immediately return the direct link
+    if not api or not site:
+        return link
+
+    # If they are NOT empty, proceed with Shortzy
     shortzy = Shortzy(api, site)
     try:
         link = await shortzy.convert(link)
     except Exception as e:
-        link = await shortzy.get_quick_link(link)
+        try:
+            link = await shortzy.get_quick_link(link)
+        except Exception:
+            # Absolute ultimate fallback just in case Shortzy crashes entirely
+            pass 
+            
     return link
+
 
 async def get_settings(group_id):
     settings = temp.SETTINGS.get(group_id)
