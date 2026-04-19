@@ -140,7 +140,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
-                    InlineKeyboardButton('📤 ᴄᴏɴᴛʀɪʙᴜᴛᴇ', callback_data='contrib_tut'),
+                    InlineKeyboardButton('💬 ᴊᴏɪɴ ɢʀᴏᴜᴘ', url=GRP_LNK),
                     InlineKeyboardButton('🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ', callback_data='show_leaderboard')
                 ],[
                     InlineKeyboardButton('📊 ᴍʏ ᴘʀᴏꜰɪʟᴇ', callback_data='my_profile_cb'),
