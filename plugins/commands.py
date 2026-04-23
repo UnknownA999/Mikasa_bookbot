@@ -599,7 +599,6 @@ async def start(client, message):
             f_caption = f_caption
 
     if f_caption is None:
-    if f_caption is None:
         f_caption = clean_filename(files.file_name)
     
     # 1. SETUP THE BUTTON LIST
