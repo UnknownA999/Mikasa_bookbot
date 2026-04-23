@@ -268,38 +268,7 @@ async def start(client, message):
             start_id, end_id = int(start_id), int(end_id)
             target_channel = -1003782307099 # Your Data Media Channel
             
-            # --- 30-MIN BATCH VERIFICATION LOCK ---
-            user_id = message.from_user.id
-            if not await db.has_premium_access(user_id):
-                user_verified = await db.is_user_verified(user_id)
-                time_expired = await db.use_second_shortener(user_id, 1800)
-                
-                # FORCE VERIFICATION: strictly enforces the 30-min loop
-                if not user_verified or time_expired:
-                    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                    await db.create_verify_id(user_id, verify_id)
-                    
-                    # Generates shortlink pointing to batchcopy
-                    verify = await get_shortlink(f"https://telegram.me/{temp.U_NAME}?start=batchcopy_{user_id}_{verify_id}_{start_id}_{end_id}", 0, False, False)
-                    
-                    buttons = [[
-                        InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
-                    ],[
-                        InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
-                    ]]
-                    reply_markup=InlineKeyboardMarkup(buttons)
-                    
-                    n=await message.reply_text(
-                        text=script.VERIFICATION_TEXT.format(message.from_user.mention),
-                        protect_content = True,
-                        reply_markup=reply_markup,
-                        parse_mode=enums.ParseMode.HTML
-                    )
-                    await asyncio.sleep(300) 
-                    await n.delete()
-                    await message.delete()
-                    return
-            # --------------------------------
+
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
             
@@ -386,48 +355,7 @@ async def start(client, message):
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
 
-    user_id = message.from_user.id
-    if not await db.has_premium_access(user_id):
-        try:
-            try:
-                g_id = int(grp_id) if grp_id else 0
-            except:
-                g_id = 0
-                
-            settings = await get_settings(g_id)
-            
-            user_verified = await db.is_user_verified(user_id)
-            time_expired = await db.use_second_shortener(user_id, 1800) 
-            
-            if not user_verified or time_expired:
-                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                await db.create_verify_id(user_id, verify_id)
-                temp.VERIFICATIONS[user_id] = g_id
-                
-                if message.command[1].startswith('allfiles'):
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{user_id}_{verify_id}_{file_id}"
-                else:
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{user_id}_{verify_id}_{file_id}"
-                
-                verify = await get_shortlink(verify_url, g_id, False, False)
-                howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
-                
-                buttons = [[
-                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
-                ],[
-                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url="https://t.me/scout_regimant/8")
-                ]]
-                
-                await message.reply_text(
-                    text=script.VERIFICATION_TEXT.format(message.from_user.mention),
-                    protect_content=False,
-                    reply_markup=InlineKeyboardMarkup(buttons),
-                    parse_mode=enums.ParseMode.HTML
-                )
-                return 
-                
-        except Exception as e:
-            logger.error(f"Single File Verification Error: {e}")
+
 
     # Now, await the file details task
     files_ = await file_details_task
