@@ -23,6 +23,12 @@ API_HASH = environ.get('API_HASH', '')  # API Hash from my.telegram.org
 BOT_TOKEN = environ.get('BOT_TOKEN', "")    # Bot token from @BotFather
 
 # ============================
+# Affiliate Links Configuration
+# ============================
+AMAZON_TAG = environ.get("AMAZON_TAG", "")
+FLIPKART_TAG = environ.get("FLIPKART_TAG", "")
+
+# ============================
 # Bot Settings Configuration
 # ============================
 CACHE_TIME = int(environ.get('CACHE_TIME', 300))    # Cache time in seconds (default: 5 minutes)
