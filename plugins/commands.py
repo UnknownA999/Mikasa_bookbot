@@ -18,6 +18,7 @@ from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
 from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files, save_file
 from database.users_chats_db import db
 from info import *
+from urllib.parse import quote_plus
 from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, log_error, clean_filename
 import time
 
@@ -598,26 +599,46 @@ async def start(client, message):
             f_caption = f_caption
 
     if f_caption is None:
+    if f_caption is None:
         f_caption = clean_filename(files.file_name)
     
+    # 1. SETUP THE BUTTON LIST
+    btn = []
+    
+    # 2. ADD STREAM BUTTONS (If enabled)
     if STREAM_MODE and not PREMIUM_STREAM_MODE:
-        btn = [
-            [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
-            [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)] 
-        ]
+        btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')])
     elif STREAM_MODE and PREMIUM_STREAM_MODE:
         if not await db.has_premium_access(message.from_user.id):
-            btn = [
-                [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'prestream')],
-                [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)] 
-            ]
+            btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'prestream')])
         else:
-            btn = [
-                [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
-                [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]  
-            ]
-    else:
-        btn = [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]]
+            btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')])
+    
+    # 3. ADD AFFILIATE BUTTONS (Only for Books)
+    book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+    file_name_lower = files.file_name.lower()
+    
+    if file_name_lower.endswith(book_extensions):
+        AMAZON_TAG = os.environ.get("AMAZON_TAG", "")
+        FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+        
+        if AMAZON_TAG or FLIPKART_TAG:
+            clean_name = files.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+            buy_buttons = []
+            
+            if AMAZON_TAG:
+                amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+            if FLIPKART_TAG:
+                fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                
+            if buy_buttons:
+                btn.append(buy_buttons)
+
+    # 4. ADD JOIN CHANNEL BUTTON (Always at the bottom)
+    btn.append([InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)])
+
     msg = await client.send_cached_media(
         chat_id=message.from_user.id,
         file_id=file_id,
