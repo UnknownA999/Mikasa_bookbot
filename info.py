@@ -21,6 +21,11 @@ SESSION = environ.get('SESSION', 'royal_search')   # Session name for the bot
 API_ID = int(environ.get('API_ID', '')) # API ID from my.telegram.org
 API_HASH = environ.get('API_HASH', '')  # API Hash from my.telegram.org
 BOT_TOKEN = environ.get('BOT_TOKEN', "")    # Bot token from @BotFather
+# ============================
+# Affiliate Links Configuration
+# ============================
+AMAZON_TAG = environ.get("AMAZON_TAG", "")
+FLIPKART_TAG = environ.get("FLIPKART_TAG", "")
 
 # ============================
 # Bot Settings Configuration
