@@ -546,7 +546,8 @@ async def start(client, message):
     file_name_lower = files.file_name.lower()
     
     if file_name_lower.endswith(book_extensions):
-        AMAZON_TAG = os.environ.get("AMAZON_TAG", "")
+        # -> FAILSAFE ADDED HERE <-
+        AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
         FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
         
         if AMAZON_TAG or FLIPKART_TAG:
@@ -562,6 +563,7 @@ async def start(client, message):
                 
             if buy_buttons:
                 btn.append(buy_buttons)
+
 
     # 4. ADD JOIN CHANNEL BUTTON (Always at the bottom)
     btn.append([InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)])
