@@ -416,8 +416,33 @@ async def start(client, message):
                         ]
                 else:
                     btn = [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]]
+                
+                # ---> AMAZON LOGIC FOR BATCH FILES <---
+                book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+                file_name_lower = files1.file_name.lower()
+                
+                if file_name_lower.endswith(book_extensions):
+                    AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+                    FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+                    
+                    if AMAZON_TAG or FLIPKART_TAG:
+                        clean_name = files1.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+                        buy_buttons = []
+                        
+                        if AMAZON_TAG:
+                            amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                            buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+                        if FLIPKART_TAG:
+                            fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                            buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                            
+                        if buy_buttons:
+                            btn.insert(-1, buy_buttons)
+                # --------------------------------------
+
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
+
                     file_id=file_id,
                     caption=f_caption,
                     protect_content=settings.get('file_secure', PROTECT_CONTENT),
@@ -483,12 +508,37 @@ async def start(client, message):
                         quality=quality,
                         season=season
                     )
-                except:
+                   except:
                     return
+
+            # ---> AMAZON LOGIC FOR ENCODED FILES <---
+            book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+            file_name_lower = file.file_name.lower()
+            
+            if file_name_lower.endswith(book_extensions):
+                AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+                FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+                
+                if AMAZON_TAG or FLIPKART_TAG:
+                    clean_name = file.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+                    buy_buttons = []
+                    
+                    if AMAZON_TAG:
+                        amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                        buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+                    if FLIPKART_TAG:
+                        fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                        buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                        
+                    if buy_buttons:
+                        btn.insert(-1, buy_buttons)
+            # ----------------------------------------
+
             await msg.edit_caption(
                 f_caption,
                 reply_markup=InlineKeyboardMarkup(btn)
             )
+
             k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
                 quote=True, parse_mode=enums.ParseMode.HTML
             )
