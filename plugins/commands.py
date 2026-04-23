@@ -508,10 +508,11 @@ async def start(client, message):
                         quality=quality,
                         season=season
                     )
-                   except:
+                except:
                     return
 
             # ---> AMAZON LOGIC FOR ENCODED FILES <---
+
             book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
             file_name_lower = file.file_name.lower()
             
