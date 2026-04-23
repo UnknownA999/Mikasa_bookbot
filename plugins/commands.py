@@ -418,7 +418,7 @@ async def start(client, message):
                     btn = [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]]
                 
                 # ---> AMAZON LOGIC FOR BATCH FILES <---
-                book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+                book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
                 file_name_lower = files1.file_name.lower()
                 
                 if file_name_lower.endswith(book_extensions):
@@ -513,7 +513,7 @@ async def start(client, message):
 
             # ---> AMAZON LOGIC FOR ENCODED FILES <---
 
-            book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+            book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
             file_name_lower = file.file_name.lower()
             
             if file_name_lower.endswith(book_extensions):
@@ -593,7 +593,7 @@ async def start(client, message):
             btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')])
     
     # 3. ADD AFFILIATE BUTTONS (Only for Books)
-    book_extensions = ('.pdf', '.epub', '.mobi', '.cbz', '.cbr', '.txt', '.azw3')
+    book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
     file_name_lower = files.file_name.lower()
     
     if file_name_lower.endswith(book_extensions):
