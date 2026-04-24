@@ -107,7 +107,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
-                    InlineKeyboardButton('💬 ᴊᴏɪɴ ɢʀᴏᴜᴘ', url=GRP_LNK),     
+                    InlineKeyboardButton('ʙᴜʏ ᴀᴅs☕︎', url=GRP_LNK),     
                     InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
                 ],[
                     InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
@@ -141,7 +141,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
-                    InlineKeyboardButton('💬 ᴊᴏɪɴ ɢʀᴏᴜᴘ', url=GRP_LNK),
+                    InlineKeyboardButton('ʙᴜʏ ᴀᴅs☕︎', url=GRP_LNK),
                     InlineKeyboardButton('🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ', callback_data='show_leaderboard')
                 ],[
                     InlineKeyboardButton('📊 ᴍʏ ᴘʀᴏꜰɪʟᴇ', callback_data='my_profile_cb'),
