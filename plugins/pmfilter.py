@@ -918,12 +918,78 @@ async def cb_handler(client: Client, query: CallbackQuery):
         user = query.message.reply_to_message.from_user.id if query.message.reply_to_message else query.from_user.id
         if int(user) != 0 and query.from_user.id != int(user):
             return await query.answer(script.ALRT_TXT.format(query.from_user.first_name), show_alert=True)
+
+        # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (SINGLE FILE) <---
+        if not await db.has_premium_access(query.from_user.id):
+            user_verified = await db.is_user_verified(query.from_user.id)
+            time_expired = await db.use_second_shortener(query.from_user.id, 57600) # 16 Hours
+
+            if not user_verified or time_expired:
+                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                await db.create_verify_id(query.from_user.id, verify_id)
+                temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
+
+                # Generate the shortlink specifically for this locked file
+                verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{query.from_user.id}_{verify_id}_{file_id}"
+                
+                try:
+                    verify = await get_shortlink(verify_url, query.message.chat.id, False, False)
+                except Exception:
+                    verify = verify_url
+                    
+                buttons = [[
+                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                ],[
+                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
+                ]]
+                
+                await query.message.reply_text(
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return await query.answer("⚠️ You must verify first to unlock this file!", show_alert=True)
+        # ------------------------------------------------------------
+
         await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
 
     elif query.data.startswith("sendfiles"):
         clicked = query.from_user.id
         ident, key = query.data.split("#")
         settings = await get_settings(query.message.chat.id)
+        
+        # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (BATCH) <---
+        if not await db.has_premium_access(query.from_user.id):
+            user_verified = await db.is_user_verified(query.from_user.id)
+            time_expired = await db.use_second_shortener(query.from_user.id, 57600) # 16 Hours
+
+            if not user_verified or time_expired:
+                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                await db.create_verify_id(query.from_user.id, verify_id)
+                temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
+
+                # Generate the shortlink specifically for the batch of files
+                verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{query.from_user.id}_{verify_id}_{key}"
+                
+                try:
+                    verify = await get_shortlink(verify_url, query.message.chat.id, False, False)
+                except Exception:
+                    verify = verify_url
+                    
+                buttons = [[
+                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                ],[
+                    InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL) if settings else TUTORIAL)
+                ]]
+                
+                await query.message.reply_text(
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return await query.answer("⚠️ You must verify first to get all files!", show_alert=True)
+        # ------------------------------------------------------
+        
         try:
             await query.answer(url=f"https://telegram.me/{temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
             return
