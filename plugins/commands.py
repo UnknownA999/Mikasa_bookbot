@@ -277,16 +277,13 @@ async def start(client, message):
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                     await db.create_verify_id(message.from_user.id, verify_id)
                     
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
-                    
-                    try:
-                        verify = await get_shortlink(verify_url, 0, False, False)
-                    except:
-                        verify = verify_url
+                    payload = f"batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
+                    webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
                         
                     buttons = [[
-                        InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                     ],[
+
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                     ]]
                     
@@ -404,21 +401,18 @@ async def start(client, message):
                 temp.VERIFICATIONS[message.from_user.id] = int(grp_id)
                 
                 if data.startswith("allfiles"):
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{file_id}"
+                    payload = f"sendall_{message.from_user.id}_{verify_id}_{file_id}"
                 else:
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{file_id}"
+                    payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
                 
-                try:
-                    verify = await get_shortlink(verify_url, int(grp_id), False, False)
-                except Exception as e:
-                    logger.error(f"Shortlink Error: {e}")
-                    verify = verify_url
+                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
                 buttons = [[
-                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                 ],[
+
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 
