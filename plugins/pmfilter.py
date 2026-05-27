@@ -930,7 +930,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
                 payload = f"notcopy_{query.from_user.id}_{verify_id}_{file_id}"
-                verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Live mini app link
+                # Point directly to your GitHub Pages URL with the payload as a query param
+                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+
                     
                 buttons = [[
                     InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
@@ -963,8 +965,10 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 await db.create_verify_id(query.from_user.id, verify_id)
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
-                payload = f"sendall_{query.from_user.id}_{verify_id}_{key}"
-                verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Live mini app link
+                payload = f"notcopy_{query.from_user.id}_{verify_id}_{file_id}"
+                # Point directly to your GitHub Pages URL with the payload as a query param
+                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+
                     
                 buttons = [[
                     InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
