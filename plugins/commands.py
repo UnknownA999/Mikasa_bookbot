@@ -271,7 +271,7 @@ async def start(client, message):
             # ---> 16-HOUR BATCH VERIFICATION LOCK <---
             if not await db.has_premium_access(message.from_user.id):
                 user_verified = await db.is_user_verified(message.from_user.id)
-                time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
+                time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
                 
                 if not user_verified or time_expired:
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -287,7 +287,7 @@ async def start(client, message):
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                     ]]
                     
-                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
+                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ."
                     
                     dlt = await message.reply_text(
                         text=verify_text,
@@ -393,7 +393,7 @@ async def start(client, message):
         if is_verify:
             user_verified = await db.is_user_verified(message.from_user.id)
             # 57600 seconds = exactly 16 hours
-            time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
+            time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
             
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
