@@ -929,17 +929,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 await db.create_verify_id(query.from_user.id, verify_id)
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
-                # Generate the shortlink specifically for this locked file
-                verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{query.from_user.id}_{verify_id}_{file_id}"
-                
-                try:
-                    verify = await get_shortlink(verify_url, query.message.chat.id, False, False)
-                except Exception:
-                    verify = verify_url
+                payload = f"notcopy_{query.from_user.id}_{verify_id}_{file_id}"
+                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
                     
                 buttons = [[
-                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                 ],[
+
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                 ]]
                 
@@ -968,17 +964,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 await db.create_verify_id(query.from_user.id, verify_id)
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
-                # Generate the shortlink specifically for the batch of files
-                verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{query.from_user.id}_{verify_id}_{key}"
-                
-                try:
-                    verify = await get_shortlink(verify_url, query.message.chat.id, False, False)
-                except Exception:
-                    verify = verify_url
+                payload = f"sendall_{query.from_user.id}_{verify_id}_{key}"
+                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
                     
                 buttons = [[
-                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                 ],[
+
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL) if settings else TUTORIAL)
                 ]]
                 
