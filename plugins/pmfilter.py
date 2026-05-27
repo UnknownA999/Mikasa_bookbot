@@ -922,7 +922,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (SINGLE FILE) <---
         if not await db.has_premium_access(query.from_user.id):
             user_verified = await db.is_user_verified(query.from_user.id)
-            time_expired = await db.use_second_shortener(query.from_user.id, 57600) # 16 Hours
+            time_expired = await db.use_second_shortener(query.from_user.id, 3600) # 1 Hour
 
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -940,7 +940,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 ]]
                 
                 await query.message.reply_text(
-                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ.",
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
@@ -957,7 +957,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (BATCH) <---
         if not await db.has_premium_access(query.from_user.id):
             user_verified = await db.is_user_verified(query.from_user.id)
-            time_expired = await db.use_second_shortener(query.from_user.id, 57600) # 16 Hours
+            time_expired = await db.use_second_shortener(query.from_user.id, 3600) # 1 Hour
 
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -975,7 +975,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 ]]
                 
                 await query.message.reply_text(
-                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ.",
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
