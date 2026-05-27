@@ -386,18 +386,18 @@ async def start(client, message):
             await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
-        # ---> 1-HOUR VERIFICATION SYSTEM (WITH DM FIX) <---
+        # ---> 1-HOUR VERIFICATION SYSTEM <---
         settings = await get_settings(int(grp_id))
-        is_verify = settings.get('is_verify', True) if settings else IS_VERIFY
+        is_verify = settings.get('is_verify', True)
         
-        # FORCE FIX: If grp_id is 0, it means it's a direct message (DM) search!
-        if int(grp_id) == 0:
+        # DM SEARCH FIX: Force the ad to show if they search in the bot's DM!
+        if int(grp_id) == 0 or int(grp_id) == message.from_user.id:
             is_verify = True
-        
+            
         if is_verify:
             user_verified = await db.is_user_verified(message.from_user.id)
-            # Changed 57600 to 3600 for exactly 1 hour access
             time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
+
             
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
