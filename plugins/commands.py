@@ -278,11 +278,12 @@ async def start(client, message):
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                     await db.create_verify_id(message.from_user.id, verify_id)
                     
-                    payload = f"batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
-                    verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Your live mini app link
+                    payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
+                    webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+
                         
                     buttons = [[
-                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
+                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                     ],[
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                     ]]
@@ -411,7 +412,7 @@ async def start(client, message):
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
                 buttons = [[
-                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
