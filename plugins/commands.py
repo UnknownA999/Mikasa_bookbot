@@ -386,13 +386,17 @@ async def start(client, message):
             await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
-        # ---> 16-HOUR VERIFICATION SYSTEM <---
+        # ---> 1-HOUR VERIFICATION SYSTEM (WITH DM FIX) <---
         settings = await get_settings(int(grp_id))
-        is_verify = settings.get('is_verify', True)
+        is_verify = settings.get('is_verify', True) if settings else IS_VERIFY
+        
+        # FORCE FIX: If grp_id is 0, it means it's a direct message (DM) search!
+        if int(grp_id) == 0:
+            is_verify = True
         
         if is_verify:
             user_verified = await db.is_user_verified(message.from_user.id)
-            # 57600 seconds = exactly 16 hours
+            # Changed 57600 to 3600 for exactly 1 hour access
             time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
             
             if not user_verified or time_expired:
@@ -412,11 +416,10 @@ async def start(client, message):
                 buttons = [[
                     InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
                 ],[
-
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 
-                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
+                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀɴ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **1 ʜᴏᴜʀ**."
                 
                 await message.reply_text(
                     text=verify_text,
@@ -425,6 +428,7 @@ async def start(client, message):
                     parse_mode=enums.ParseMode.HTML
                 )
                 return
+
         # -------------------------------------
 
     # Now, await the file details task
