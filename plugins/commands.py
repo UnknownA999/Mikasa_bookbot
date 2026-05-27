@@ -47,7 +47,7 @@ async def start(client, message):
                 print(f"Could not send to Log Channel: {e}")
     # --------------------------------------------------
 
-    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
+    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall', 'batchcopy')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
         user_id = int(userid)
         grp_id = temp.VERIFICATIONS.get(user_id, 0)
