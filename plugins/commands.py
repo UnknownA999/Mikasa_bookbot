@@ -279,7 +279,7 @@ async def start(client, message):
                     await db.create_verify_id(message.from_user.id, verify_id)
                     
                     payload = f"batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
-                    verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Your live mini app link
+                    verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Your live mini app link
                         
                     buttons = [[
                         InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
@@ -406,7 +406,7 @@ async def start(client, message):
                 else:
                     payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
                 
-                verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Your live mini app link
+                verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Your live mini app link
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
