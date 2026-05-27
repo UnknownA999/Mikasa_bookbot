@@ -47,7 +47,7 @@ async def start(client, message):
                 print(f"Could not send to Log Channel: {e}")
     # --------------------------------------------------
 
-    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall', 'batchcopy')):
+    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
         user_id = int(userid)
         grp_id = temp.VERIFICATIONS.get(user_id, 0)
@@ -269,26 +269,28 @@ async def start(client, message):
             target_channel = -1003782307099 # Your Data Media Channel
             
             # ---> 16-HOUR BATCH VERIFICATION LOCK <---
-            # ---> 2-HOUR BATCH VERIFICATION LOCK <---
             if not await db.has_premium_access(message.from_user.id):
                 user_verified = await db.is_user_verified(message.from_user.id)
-                time_expired = await db.use_second_shortener(message.from_user.id, 7200) # Changed to 2 hours
+                time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
                 
                 if not user_verified or time_expired:
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                     await db.create_verify_id(message.from_user.id, verify_id)
                     
-                    payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
-                    webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
-
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
+                    
+                    try:
+                        verify = await get_shortlink(verify_url, 0, False, False)
+                    except:
+                        verify = verify_url
                         
                     buttons = [[
-                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                        InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                     ],[
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                     ]]
                     
-                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**."
+                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
                     
                     dlt = await message.reply_text(
                         text=verify_text,
@@ -301,7 +303,6 @@ async def start(client, message):
                     await message.delete()
                     return
             # -----------------------------------------
-
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
 
@@ -388,14 +389,14 @@ async def start(client, message):
             await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
-        # ---> 2-HOUR MINI APP VERIFICATION SYSTEM <---
+        # ---> 16-HOUR VERIFICATION SYSTEM <---
         settings = await get_settings(int(grp_id))
         is_verify = settings.get('is_verify', True)
         
         if is_verify:
             user_verified = await db.is_user_verified(message.from_user.id)
-            # 7200 seconds = exactly 2 hours
-            time_expired = await db.use_second_shortener(message.from_user.id, 7200) 
+            # 57600 seconds = exactly 16 hours
+            time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
             
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -403,21 +404,25 @@ async def start(client, message):
                 temp.VERIFICATIONS[message.from_user.id] = int(grp_id)
                 
                 if data.startswith("allfiles"):
-                    payload = f"sendall_{message.from_user.id}_{verify_id}_{file_id}"
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{file_id}"
                 else:
-                    payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{file_id}"
                 
-                verify = f"https://t.me/GoogleBookxSearchBot/Verify?startapp={payload}" # Your live mini app link
+                try:
+                    verify = await get_shortlink(verify_url, int(grp_id), False, False)
+                except Exception as e:
+                    logger.error(f"Shortlink Error: {e}")
+                    verify = verify_url
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
                 buttons = [[
-                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                    InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 
-                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**."
+                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
                 
                 await message.reply_text(
                     text=verify_text,
@@ -427,7 +432,6 @@ async def start(client, message):
                 )
                 return
         # -------------------------------------
-
 
     # Now, await the file details task
     files_ = await file_details_task
