@@ -919,10 +919,10 @@ async def cb_handler(client: Client, query: CallbackQuery):
         if int(user) != 0 and query.from_user.id != int(user):
             return await query.answer(script.ALRT_TXT.format(query.from_user.first_name), show_alert=True)
 
-        # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (SINGLE FILE) <---
+        # ---> 2-HOUR MINI APP VERIFICATION SYSTEM (SINGLE FILE) <---
         if not await db.has_premium_access(query.from_user.id):
             user_verified = await db.is_user_verified(query.from_user.id)
-            time_expired = await db.use_second_shortener(query.from_user.id, 3600) # 1 Hour
+            time_expired = await db.use_second_shortener(query.from_user.id, 7200) # 2 Hours
 
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -930,17 +930,16 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
                 payload = f"notcopy_{query.from_user.id}_{verify_id}_{file_id}"
-                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+                verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Live mini app link
                     
                 buttons = [[
-                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
                 ],[
-
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                 ]]
                 
                 await query.message.reply_text(
-                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ.",
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**.",
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
@@ -954,10 +953,10 @@ async def cb_handler(client: Client, query: CallbackQuery):
         ident, key = query.data.split("#")
         settings = await get_settings(query.message.chat.id)
         
-        # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (BATCH) <---
+        # ---> 2-HOUR MINI APP VERIFICATION SYSTEM (BATCH) <---
         if not await db.has_premium_access(query.from_user.id):
             user_verified = await db.is_user_verified(query.from_user.id)
-            time_expired = await db.use_second_shortener(query.from_user.id, 3600) # 1 Hour
+            time_expired = await db.use_second_shortener(query.from_user.id, 7200) # 2 Hours
 
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -965,22 +964,22 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 temp.VERIFICATIONS[query.from_user.id] = query.message.chat.id
 
                 payload = f"sendall_{query.from_user.id}_{verify_id}_{key}"
-                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+                verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Live mini app link
                     
                 buttons = [[
-                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
                 ],[
-
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL) if settings else TUTORIAL)
                 ]]
                 
                 await query.message.reply_text(
-                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ.",
+                    text=f"📌 **{query.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**.",
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
                 return await query.answer("⚠️ You must verify first to get all files!", show_alert=True)
         # ------------------------------------------------------
+
         
         try:
             await query.answer(url=f"https://telegram.me/{temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
