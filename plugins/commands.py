@@ -12,7 +12,7 @@ from Script import script
 from datetime import datetime
 from database.refer import referdb
 from database.config_db import mdb
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup, WebAppInfo
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
 from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files, save_file
@@ -71,12 +71,7 @@ async def start(client, message):
             verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=allfiles_{grp_id}_{file_id}"
         else:
             verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
-        # FIX: Stop the bot from crashing in DMs when there is no log channel
-        try:
-            if settings and settings.get('log'):
-                await client.send_message(settings['log'], script.VERIFIED_LOG_TEXT.format(m.from_user.mention, user_id, datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d %B %Y'), num))
-        except Exception:
-            pass
+        await client.send_message(settings['log'], script.VERIFIED_LOG_TEXT.format(m.from_user.mention, user_id, datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d %B %Y'), num))
         btn = [[
             InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇ ✅", url=verifiedfiles),
         ]]
@@ -274,25 +269,25 @@ async def start(client, message):
             target_channel = -1003782307099 # Your Data Media Channel
             
             # ---> 16-HOUR BATCH VERIFICATION LOCK <---
+            # ---> 2-HOUR BATCH VERIFICATION LOCK <---
             if not await db.has_premium_access(message.from_user.id):
                 user_verified = await db.is_user_verified(message.from_user.id)
-                time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
+                time_expired = await db.use_second_shortener(message.from_user.id, 7200) # Changed to 2 hours
                 
                 if not user_verified or time_expired:
                     verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                     await db.create_verify_id(message.from_user.id, verify_id)
                     
                     payload = f"batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
-                    webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+                    verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Your live mini app link
                         
                     buttons = [[
-                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                        InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
                     ],[
-
                         InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)
                     ]]
                     
-                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 1 ʜᴏᴜʀ."
+                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**."
                     
                     dlt = await message.reply_text(
                         text=verify_text,
@@ -305,6 +300,7 @@ async def start(client, message):
                     await message.delete()
                     return
             # -----------------------------------------
+
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
 
@@ -391,18 +387,14 @@ async def start(client, message):
             await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
-        # ---> 1-HOUR VERIFICATION SYSTEM <---
+        # ---> 2-HOUR MINI APP VERIFICATION SYSTEM <---
         settings = await get_settings(int(grp_id))
         is_verify = settings.get('is_verify', True)
         
-        # DM SEARCH FIX: Force the ad to show if they search in the bot's DM!
-        if int(grp_id) == 0 or int(grp_id) == message.from_user.id:
-            is_verify = True
-            
         if is_verify:
             user_verified = await db.is_user_verified(message.from_user.id)
-            time_expired = await db.use_second_shortener(message.from_user.id, 3600) 
-
+            # 7200 seconds = exactly 2 hours
+            time_expired = await db.use_second_shortener(message.from_user.id, 7200) 
             
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
@@ -414,17 +406,17 @@ async def start(client, message):
                 else:
                     payload = f"notcopy_{message.from_user.id}_{verify_id}_{file_id}"
                 
-                webapp_url = f"https://unknowna999.github.io/Mikasa-ad/?startapp={payload}"
+                verify = f"https://t.me/Mikasaadsbot/ads?startapp={payload}" # Your live mini app link
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
                 buttons = [[
-                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", web_app=WebAppInfo(url=webapp_url))
+                    InlineKeyboardButton(text="🎬 ᴡᴀᴛᴄʜ ᴀᴅ ᴛᴏ ᴜɴʟᴏᴄᴋ 🎬", url=verify)
                 ],[
                     InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
                 ]]
                 
-                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀɴ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **1 ʜᴏᴜʀ**."
+                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀᴛᴄʜ ᴀ 15-ꜱᴇᴄᴏɴᴅ ᴀᴅ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **2 ʜᴏᴜʀꜱ**."
                 
                 await message.reply_text(
                     text=verify_text,
@@ -433,8 +425,8 @@ async def start(client, message):
                     parse_mode=enums.ParseMode.HTML
                 )
                 return
-
         # -------------------------------------
+
 
     # Now, await the file details task
     files_ = await file_details_task
