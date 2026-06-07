@@ -942,6 +942,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
                     [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
                     [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
+                    [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
                 ]
 
 
@@ -984,6 +985,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
                     [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
                     [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
+                    [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
                 ]
 
 
@@ -1609,23 +1611,25 @@ async def cb_handler(client: Client, query: CallbackQuery):
         buttons = [[
                 InlineKeyboardButton('🌲 Sᴇɴᴅ Dᴏɴᴀᴛᴇ Sᴄʀᴇᴇɴsʜᴏᴛ Hᴇʀᴇ', url=OWNER_LNK)
             ],[
-                InlineKeyboardButton('⇍ ʙᴀᴄᴋ ⇏', callback_data='about')
+                InlineKeyboardButton('❌ ᴄʟᴏꜱᴇ ❌', callback_data='close_data')
             ]]
         reply_markup = InlineKeyboardMarkup(buttons)
-        await query.message.edit_text(text="● ◌ ◌")
-        await query.message.edit_text(text="● ● ◌")
-        await query.message.edit_text(text="● ● ●")
-        reply_markup = InlineKeyboardMarkup(buttons)
-        await client.edit_message_media(
-            query.message.chat.id,
-            query.message.id,
-            InputMediaPhoto('https://graph.org/file/99eebf5dbe8a134f548e0.jpg')
-        )
-        await query.message.edit_text(
-            text=script.DREAMXBOTZ_DONATION.format(query.from_user.mention, QR_CODE, OWNER_UPI_ID),
+        
+        # Safely delete the previous text message to avoid Telegram API crash
+        try:
+            await query.message.delete()
+        except:
+            pass
+            
+        # Send the fresh donation QR Code photo
+        await client.send_photo(
+            chat_id=query.message.chat.id,
+            photo='https://graph.org/file/99eebf5dbe8a134f548e0.jpg',
+            caption=script.DREAMXBOTZ_DONATION.format(query.from_user.mention, QR_CODE, OWNER_UPI_ID),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
+        await query.answer("Thank you for your support! ❤️")
 
     elif query.data == "help":
         buttons = [[
