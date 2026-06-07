@@ -284,16 +284,12 @@ async def start(client, message):
                     except:
                         verify = verify_url
                         
-                # Ekdum clean bracket format (No IndentationError)
-                buttons = [
-                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
-                ]
-
-
-
-                
+                    buttons = [
+                        [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
+                        [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
+                        [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")],
+                        [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
+                    ]
                     
                     verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
                     
@@ -303,6 +299,7 @@ async def start(client, message):
                         reply_markup=InlineKeyboardMarkup(buttons),
                         parse_mode=enums.ParseMode.HTML
                     )
+
                     await asyncio.sleep(300) 
                     await dlt.delete()
                     await message.delete()
@@ -421,16 +418,12 @@ async def start(client, message):
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
-                # Ekdum clean bracket format (No IndentationError)
                 buttons = [
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)],
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")],
+                    [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
                 ]
-
-
-
-
                 
                 verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
                 
@@ -440,6 +433,7 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
+
                 return
         # -------------------------------------
 
