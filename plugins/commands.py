@@ -284,11 +284,13 @@ async def start(client, message):
                     except:
                         verify = verify_url
                         
-                    buttons = [
-                        [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                        [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                        [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url=f"https://t.me/{temp.U_NAME}?start=premium")]
-                    ]
+                # Ekdum clean bracket format (No IndentationError)
+                buttons = [
+                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
+                ]
+
 
 
                 
@@ -419,11 +421,13 @@ async def start(client, message):
                     
                 howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
                 
-                    buttons = [
-                        [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                        [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                        [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url=f"https://t.me/{temp.U_NAME}?start=premium")]
-                    ]
+                # Ekdum clean bracket format (No IndentationError)
+                buttons = [
+                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
+                ]
+
 
 
 
