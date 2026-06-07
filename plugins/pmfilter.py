@@ -937,11 +937,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 except Exception:
                     verify = verify_url
                     
+                # Ekdum clean bracket format (No IndentationError)
                 buttons = [
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
                     [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url=f"https://t.me/{temp.U_NAME}?start=premium")]
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
                 ]
+
 
                 
                 await query.message.reply_text(
@@ -977,11 +979,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 except Exception:
                     verify = verify_url
                     
+                # Ekdum clean bracket format (No IndentationError)
                 buttons = [
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL) if settings else TUTORIAL)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url=f"https://t.me/{temp.U_NAME}?start=premium")]
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")]
                 ]
+
 
                 
                 await query.message.reply_text(
