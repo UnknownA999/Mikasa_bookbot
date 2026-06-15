@@ -11,28 +11,24 @@ async def webapp_deep_link_handler(client, message):
     # Check if this is a download link from our Mini App
     if len(message.command) > 1 and message.command[1].startswith("file_"):
         
-        # Extract the ID from the command
-        file_id_string = message.command[1].replace("file_", "")
+        # Extract the short 24-character MongoDB ID from the command
+        short_id = message.command[1].replace("file_", "")
         
-        # 1. Search the database
-        file_data = await Media.collection.find_one({"file_id": file_id_string})
-        
-        # 2. Fallback: If it's a raw MongoDB ObjectId, search by _id
-        if not file_data:
-            try:
-                file_data = await Media.collection.find_one({"_id": ObjectId(file_id_string)})
-            except Exception:
-                pass
+        try:
+            # 1. Find the exact document using the short ID
+            file_data = await Media.collection.find_one({"_id": ObjectId(short_id)})
+        except Exception:
+            file_data = None
                 
         # If the file was deleted or doesn't exist
         if not file_data:
             await message.reply_text("⚠️ **Sorry, this file is no longer available in our database!**")
             return
             
-        # 3. Deliver the file instantly! (Bypasses verification)
-        await client.send_cached_media(
+        # 2. Deliver the file instantly using the massive Telegram file_id stored in the database!
+        await client.send_document(
             chat_id=message.chat.id,
-            file_id=file_data["file_id"],
+            document=file_data["file_id"],
             caption=f"**{file_data.get('file_name', 'Book')}**\n\n⚜️ Powered By : [ Mikasa Library ]"
         )
         
