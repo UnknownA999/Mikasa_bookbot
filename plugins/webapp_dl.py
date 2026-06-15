@@ -8,33 +8,46 @@ logger = logging.getLogger(__name__)
 # group=-1 ensures this runs BEFORE your normal verification and start commands!
 @Client.on_message(filters.private & filters.command("start"), group=-1)
 async def webapp_deep_link_handler(client, message):
-    # Check if this is a download link from our Mini App
     if len(message.command) > 1 and message.command[1].startswith("file_"):
         
-        # Extract the short 24-character MongoDB ID from the command
+        # Extract whatever ID the WebApp sent us (even if it's chopped in half)
         short_id = message.command[1].replace("file_", "")
+        file_data = None
         
+        # Try 1: Is it a short MongoDB ObjectId?
         try:
-            # 1. Find the exact document using the short ID
             file_data = await Media.collection.find_one({"_id": ObjectId(short_id)})
         except Exception:
-            file_data = None
-                
-        # If the file was deleted or doesn't exist
+            pass
+            
+        # Try 2: Is it a custom string ID?
         if not file_data:
-            await message.reply_text("⚠️ **Sorry, this file is no longer available in our database!**")
+            try:
+                file_data = await Media.collection.find_one({"_id": short_id})
+            except Exception:
+                pass
+                
+        # Try 3: THE BULLETPROOF FIX
+        # If Telegram chopped the massive file_id in half, we search for a file that STARTS with the chopped text!
+        if not file_data:
+            try:
+                file_data = await Media.collection.find_one({"file_id": {"$regex": f"^{short_id}"}})
+            except Exception:
+                pass
+
+        # If it still fails, it prints a debug code so we know exactly what went wrong.
+        if not file_data:
+            await message.reply_text(f"⚠️ **Sorry, this file is no longer available!**\n\n`(Debug Code: {short_id})`")
             return
             
-        # 2. Deliver the file instantly using the massive Telegram file_id stored in the database!
+        # Deliver the full, un-chopped file instantly!
         await client.send_document(
             chat_id=message.chat.id,
             document=file_data["file_id"],
             caption=f"**{file_data.get('file_name', 'Book')}**\n\n⚜️ Powered By : [ Mikasa Library ]"
         )
         
-        # We return here so the bot STOPS processing. 
-        # This prevents the "You are not verified" message from showing up.
-        return 
+        return # Stops the bot from showing the 16-hour verification text
 
-    # If it's just a normal /start command, we let your other plugins handle it normally.
+    # Normal /start commands continue as normal
     raise ContinuePropagation
