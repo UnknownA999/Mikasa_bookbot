@@ -255,8 +255,8 @@ async def search_handler(request: web.Request):
         AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
         amazon_link = meta.get("buy_link") or f"https://www.amazon.in/s?k={amazon_query}&tag={AMAZON_TAG}"
         
-        # ---> THE FIX: Catching both _id and file_id from MongoDB <---
-        actual_file_id = doc.get("file_id") or doc.get("_id") or ""
+        # ---> THE FIX: Using MongoDB's short 24-character ID to bypass Telegram's 64-char limit <---
+        actual_file_id = str(doc.get("_id"))
         
         return {
             "file_id": actual_file_id,
