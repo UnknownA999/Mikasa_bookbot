@@ -161,7 +161,7 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
 import aiohttp
 import os
 import asyncio
-from database.ia_filterdb import Media
+import re
 
 async def fetch_book_metadata(title: str):
     default = {"cover": "", "authors": "Unknown Author", "synopsis": "", "buy_link": ""}
@@ -197,6 +197,9 @@ async def search_options(request: web.Request):
 # The Main Search API
 @routes.get("/api/search")
 async def search_handler(request: web.Request):
+    # ---> THE FIX: Import moved inside the function to prevent Circular Import Crash <---
+    from database.ia_filterdb import Media
+    
     headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type"}
     query = request.rel_url.query.get("q", "").strip()
     
