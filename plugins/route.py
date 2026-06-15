@@ -153,3 +153,85 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
             "Accept-Ranges": "bytes",
         },
     )
+
+
+# ─────────────────────────────────────────────
+# 🌐 GOOGLE BOOKS API & MINI APP SEARCH ROUTE 🌐
+# ─────────────────────────────────────────────
+import aiohttp
+import os
+import asyncio
+from database.ia_filterdb import Media
+
+async def fetch_book_metadata(title: str):
+    default = {"cover": "", "authors": "Unknown Author", "synopsis": "", "buy_link": ""}
+    query = f"intitle:{title}"
+    params = {"q": query, "maxResults": 1, "printType": "books", "fields": "items(volumeInfo(title,authors,description,imageLinks,canonicalVolumeLink,infoLink))"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://www.googleapis.com/books/v1/volumes", params=params, timeout=6) as resp:
+                if resp.status != 200: return default
+                data = await resp.json()
+                items = data.get("items")
+                if not items: return default
+                info = items[0].get("volumeInfo", {})
+                image_links = info.get("imageLinks", {})
+                cover = (image_links.get("thumbnail") or image_links.get("smallThumbnail") or "").replace("http://", "https://")
+                authors = info.get("authors") or []
+                synopsis = info.get("description", "")
+                if len(synopsis) > 500: synopsis = synopsis[:497].rstrip() + "…"
+                return {
+                    "cover": cover,
+                    "authors": ", ".join(authors) if authors else default["authors"],
+                    "synopsis": synopsis,
+                    "buy_link": info.get("infoLink") or "",
+                }
+    except:
+        return default
+
+# CORS Preflight
+@routes.options("/api/search")
+async def search_options(request: web.Request):
+    return web.Response(headers={"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type"})
+
+# The Main Search API
+@routes.get("/api/search")
+async def search_handler(request: web.Request):
+    headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type"}
+    query = request.rel_url.query.get("q", "").strip()
+    
+    if not query or len(query) < 2:
+        return web.json_response({"results": [], "total": 0}, headers=headers)
+        
+    regex = {"$regex": re.escape(query), "$options": "i"}
+    cursor = Media.collection.find({"file_name": regex}).limit(15)
+    docs = await cursor.to_list(length=15)
+    
+    if not docs:
+        return web.json_response({"results": [], "total": 0}, headers=headers)
+        
+    async def enrich(doc):
+        file_name = doc.get("file_name", "")
+        # Clean filename to get a good book title search
+        clean_title = re.sub(r"\[.*?\]|\(.*?\)|(?:1080p|720p|480p|pdf|epub|mobi|cbz|cbr)", "", file_name, flags=re.IGNORECASE).replace(".", " ").replace("_", " ").strip()
+        if not clean_title: clean_title = query
+        
+        meta = await fetch_book_metadata(clean_title)
+        
+        # Affiliate link (fallback to your mikasa tag)
+        amazon_query = clean_title.replace(" ", "+")
+        AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+        amazon_link = meta.get("buy_link") or f"https://www.amazon.in/s?k={amazon_query}&tag={AMAZON_TAG}"
+        
+        return {
+            "file_id": doc.get("file_id", ""),
+            "title": clean_title[:45] + ("..." if len(clean_title)>45 else ""),
+            "author": meta["authors"],
+            "synopsis": meta["synopsis"],
+            "cover": meta["cover"],
+            "buy_link": amazon_link,
+            "file_size": doc.get("file_size"),
+        }
+        
+    enriched = await asyncio.gather(*[enrich(doc) for doc in docs])
+    return web.json_response({"results": list(enriched), "total": len(enriched)}, headers=headers)
