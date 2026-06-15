@@ -163,9 +163,12 @@ import os
 import asyncio
 import re
 
-async def fetch_book_metadata(title: str):
+async def fetch_book_metadata(title: str, author: str = ""):
     default = {"cover": "", "authors": "Unknown Author", "synopsis": "", "buy_link": ""}
     query = f"intitle:{title}"
+    if author:
+        query += f"+inauthor:{author}"
+        
     params = {"q": query, "maxResults": 1, "printType": "books", "fields": "items(volumeInfo(title,authors,description,imageLinks,canonicalVolumeLink,infoLink))"}
     try:
         async with aiohttp.ClientSession() as session:
@@ -197,7 +200,6 @@ async def search_options(request: web.Request):
 # The Main Search API
 @routes.get("/api/search")
 async def search_handler(request: web.Request):
-    # ---> THE FIX: Import moved inside the function to prevent Circular Import Crash <---
     from database.ia_filterdb import Media
     
     headers = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": "Content-Type"}
@@ -215,21 +217,31 @@ async def search_handler(request: web.Request):
         
     async def enrich(doc):
         file_name = doc.get("file_name", "")
-        # Clean filename to get a good book title search
-        clean_title = re.sub(r"\[.*?\]|\(.*?\)|(?:1080p|720p|480p|pdf|epub|mobi|cbz|cbr)", "", file_name, flags=re.IGNORECASE).replace(".", " ").replace("_", " ").strip()
+        # Step 1: Clean basic tags and extensions
+        clean_name = re.sub(r"\[.*?\]|\(.*?\)|(?:1080p|720p|480p|pdf|epub|mobi|cbz|cbr)", "", file_name, flags=re.IGNORECASE).replace(".", " ").replace("_", " ").strip()
+        
+        # Step 2: Split string at " by " to extract Title and Author separately
+        parts = re.split(r"(?i)\s+by\s+", clean_name)
+        clean_title = parts[0].strip()
+        clean_author = parts[1].strip() if len(parts) > 1 else ""
+        
         if not clean_title: clean_title = query
         
-        meta = await fetch_book_metadata(clean_title)
+        # Step 3: Fetch metadata using both Title and Author
+        meta = await fetch_book_metadata(clean_title, clean_author)
         
-        # Affiliate link (fallback to your mikasa tag)
-        amazon_query = clean_title.replace(" ", "+")
+        # Fallback author display if Google fails to find one
+        display_author = meta["authors"] if meta["authors"] != "Unknown Author" else (clean_author or "Unknown Author")
+        
+        # Affiliate link
+        amazon_query = f"{clean_title} {clean_author}".strip().replace(" ", "+")
         AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
         amazon_link = meta.get("buy_link") or f"https://www.amazon.in/s?k={amazon_query}&tag={AMAZON_TAG}"
         
         return {
             "file_id": doc.get("file_id", ""),
             "title": clean_title[:45] + ("..." if len(clean_title)>45 else ""),
-            "author": meta["authors"],
+            "author": display_author,
             "synopsis": meta["synopsis"],
             "cover": meta["cover"],
             "buy_link": amazon_link,
