@@ -1,5 +1,5 @@
 import logging
-from pyrogram import Client, filters, ContinuePropagation
+from pyrogram import Client, filters, StopPropagation, ContinuePropagation
 from database.ia_filterdb import Media
 from bson.objectid import ObjectId
 
@@ -10,35 +10,36 @@ logger = logging.getLogger(__name__)
 async def webapp_deep_link_handler(client, message):
     if len(message.command) > 1 and message.command[1].startswith("file_"):
         
-        # Extract whatever ID the WebApp sent us (even if it's chopped in half)
-        short_id = message.command[1].replace("file_", "")
+        raw_id = message.command[1].replace("file_", "")
         file_data = None
         
-        # Try 1: Is it a short MongoDB ObjectId?
+        # Extract the real Telegram file_id (the part after the underscore)
+        search_id = raw_id.split("_")[-1] if "_" in raw_id else raw_id
+        
+        # Try 1: Search by the exact extracted file_id
         try:
-            file_data = await Media.collection.find_one({"_id": ObjectId(short_id)})
+            file_data = await Media.collection.find_one({"file_id": search_id})
         except Exception:
             pass
             
-        # Try 2: Is it a custom string ID?
+        # Try 2: Regex search (if Telegram chopped the 64-char limit)
         if not file_data:
             try:
-                file_data = await Media.collection.find_one({"_id": short_id})
+                file_data = await Media.collection.find_one({"file_id": {"$regex": f"^{search_id}"}})
             except Exception:
                 pass
                 
-        # Try 3: THE BULLETPROOF FIX
-        # If Telegram chopped the massive file_id in half, we search for a file that STARTS with the chopped text!
+        # Try 3: Search the raw string just in case
         if not file_data:
             try:
-                file_data = await Media.collection.find_one({"file_id": {"$regex": f"^{short_id}"}})
+                file_data = await Media.collection.find_one({"_id": raw_id})
             except Exception:
                 pass
 
-        # If it still fails, it prints a debug code so we know exactly what went wrong.
         if not file_data:
-            await message.reply_text(f"⚠️ **Sorry, this file is no longer available!**\n\n`(Debug Code: {short_id})`")
-            return
+            await message.reply_text(f"⚠️ **Sorry, this file is no longer available!**\n\n`(Debug: {search_id})`")
+            # Stop Fsub from crashing even if file isn't found
+            raise StopPropagation
             
         # Deliver the full, un-chopped file instantly!
         await client.send_document(
@@ -47,7 +48,8 @@ async def webapp_deep_link_handler(client, message):
             caption=f"**{file_data.get('file_name', 'Book')}**\n\n⚜️ Powered By : [ Mikasa Library ]"
         )
         
-        return # Stops the bot from showing the 16-hour verification text
+        # CRITICAL FIX: This absolutely stops Fsub and the 16-hour verification from running!
+        raise StopPropagation
 
-    # Normal /start commands continue as normal
+    # Normal /start commands continue to the next handlers
     raise ContinuePropagation
