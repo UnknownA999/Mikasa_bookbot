@@ -165,32 +165,67 @@ import re
 
 async def fetch_book_metadata(title: str, author: str = ""):
     default = {"cover": "", "authors": "Unknown Author", "synopsis": "", "buy_link": ""}
-    query = f"intitle:{title}"
-    if author:
-        query += f"+inauthor:{author}"
-        
-    params = {"q": query, "maxResults": 1, "printType": "books", "fields": "items(volumeInfo(title,authors,description,imageLinks,canonicalVolumeLink,infoLink))"}
+    
+    # 1. Clean strings to remove special characters that confuse Google
+    clean_search_title = re.sub(r'[^a-zA-Z0-9\s]', '', title).strip()
+    clean_search_author = re.sub(r'[^a-zA-Z0-9\s]', '', author).strip()
+    
+    # 2. Broad search query
+    query = f"{clean_search_title} {clean_search_author}".strip()
+    
+    params = {
+        "q": query, 
+        "maxResults": 5, # Ask for top 5 results to increase chances
+        "printType": "books",
+        "fields": "items(volumeInfo(title,authors,description,imageLinks,infoLink))"
+    }
+    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get("https://www.googleapis.com/books/v1/volumes", params=params, timeout=6) as resp:
                 if resp.status != 200: return default
                 data = await resp.json()
                 items = data.get("items")
+                
+                # 3. FALLBACK: If title+author fails completely, try searching just the title
+                if not items and clean_search_author:
+                    params["q"] = clean_search_title
+                    async with session.get("https://www.googleapis.com/books/v1/volumes", params=params, timeout=6) as resp2:
+                        if resp2.status == 200:
+                            data = await resp2.json()
+                            items = data.get("items")
+                            
                 if not items: return default
-                info = items[0].get("volumeInfo", {})
-                image_links = info.get("imageLinks", {})
+                
+                # 4. LOOP: Scan the top 5 results and pick the first one that has a cover!
+                best_info = items[0].get("volumeInfo", {})
+                for item in items:
+                    info = item.get("volumeInfo", {})
+                    if "imageLinks" in info and "thumbnail" in info["imageLinks"]:
+                        best_info = info
+                        break # Found a cover! Stop looking.
+                
+                image_links = best_info.get("imageLinks", {})
                 cover = (image_links.get("thumbnail") or image_links.get("smallThumbnail") or "").replace("http://", "https://")
-                authors = info.get("authors") or []
-                synopsis = info.get("description", "")
+                
+                # 5. Improve cover image resolution by stripping Google's zoom limits
+                cover = re.sub(r"&zoom=\d+", "", cover)
+                cover = re.sub(r"\?zoom=\d+&?", "?", cover).rstrip("?")
+                
+                authors = best_info.get("authors") or []
+                synopsis = best_info.get("description", "")
                 if len(synopsis) > 500: synopsis = synopsis[:497].rstrip() + "…"
+                
                 return {
                     "cover": cover,
                     "authors": ", ".join(authors) if authors else default["authors"],
                     "synopsis": synopsis,
-                    "buy_link": info.get("infoLink") or "",
+                    "buy_link": best_info.get("infoLink") or "",
                 }
-    except:
+    except Exception as e:
+        logger.error(f"Google Books API Error: {e}")
         return default
+
 
 # CORS Preflight
 @routes.options("/api/search")
