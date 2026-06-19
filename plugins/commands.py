@@ -47,7 +47,28 @@ async def start(client, message):
                 print(f"Could not send to Log Channel: {e}")
     # --------------------------------------------------
 
-9.94 复制打开抖音，看看【灏瀚影视的作品】爱情的理解，文佳瑛最新韩剧。# 爱情的理解 # 文... https://v.douyin.com/1gu4hvY-rTU/ P@X.Mw :1pm jpD:/ 10/24 
+    # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
+    if len(message.command) == 2 and message.command[1].startswith("webdl_"):
+        mongo_id = message.command[1].split("webdl_")[1]
+        try:
+            from bson.objectid import ObjectId
+            from database.ia_filterdb import Media 
+            
+            # MongoDB se file dhoondho
+            file_data = await Media.collection.find_one({"_id": ObjectId(mongo_id)})
+            
+            if file_data:
+                await message.reply_cached_media(
+                    file_id=file_data['file_id'],
+                    caption=f"📚 **{file_data.get('file_name', 'Mikasa Library')}**\n\n📥 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴠɪᴀ ᴘʀᴇᴍɪᴜᴍ ᴍɪɴɪ ᴀᴘᴘ"
+                )
+            else:
+                await message.reply_text("⚠️ Book database mein nahi mili!")
+        except Exception as e:
+            print(f"WebDL Error: {e}")
+            await message.reply_text("⚠️ Kuch error aa gaya. Thodi der baad try karein.")
+        return
+    # ─────────────────────────────────────────────
 
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
