@@ -47,6 +47,8 @@ async def start(client, message):
                 print(f"Could not send to Log Channel: {e}")
     # --------------------------------------------------
 
+9.94 复制打开抖音，看看【灏瀚影视的作品】爱情的理解，文佳瑛最新韩剧。# 爱情的理解 # 文... https://v.douyin.com/1gu4hvY-rTU/ P@X.Mw :1pm jpD:/ 10/24 
+
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
         user_id = int(userid)
