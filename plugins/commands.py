@@ -37,64 +37,15 @@ async def start(client, message):
             await message.react(emoji="⚡️", big=True)
     m = message
     
-    # --- FIX: NEW USER LOGGER ---
+    # --- FIX: NEW USER LOGGER MOVED TO THE VERY TOP ---
     if message.chat.type == enums.ChatType.PRIVATE:
         if not await db.is_user_exist(message.from_user.id):
             await db.add_user(message.from_user.id, message.from_user.first_name)
-    # --------------------------------------------------
-
-    # ── MIKASA MINI APP DIRECT DOWNLOAD & FSUB HANDLER ──
-    if len(message.command) > 1 and message.command[1].startswith("webdl_"):
-        file_id = message.command[1].replace("webdl_", "").strip()
-        if not file_id:
-            return await message.reply_text("⚠️ Book ID missing! Please search again.")
-
-        # 🛑 FSUB BYPASS FIX: Pehle check karo user channel mein hai ya nahi
-        if not await db.has_premium_access(message.from_user.id):
             try:
-                btn = []
-                # Main Auth Channels check
-                if AUTH_CHANNELS:
-                    btn += await is_subscribed(client, message.from_user.id, AUTH_CHANNELS)
-                if AUTH_REQ_CHANNELS:
-                    btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
-                
-                if btn:
-                    # Agar user joined nahi hai, toh Fsub message do aur wapas Mini app/link par bhejo
-                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", url=f"https://t.me/{temp.U_NAME}?start=webdl_{file_id}")])
-                    await message.reply_photo(
-                        photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
-                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜɪs ʙᴏᴏᴋ.",
-                        reply_markup=InlineKeyboardMarkup(btn),
-                        parse_mode=enums.ParseMode.HTML
-                    )
-                    return # 🛑 Bot yahin ruk jayega, book nahi dega!
+                await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
             except Exception as e:
-                print(f"Fsub Check Error: {e}")
-
-        # 📗 Agar Fsub pass ho gaya (User joined hai), toh book de do
-        try:
-            from database.ia_filterdb import get_file_details
-            from utils import clean_filename
-
-            files_ = await get_file_details(file_id)
-            if files_:
-                file_data = files_[0]
-                title = clean_filename(file_data.file_name)
-                
-                await message.reply_cached_media(
-                    file_id=file_data.file_id,
-                    caption=f"📚 **{title}**\n\n📥 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴠɪᴀ ᴘʀᴇᴍɪᴜᴍ ᴍɪɴɪ ᴀᴘᴘ"
-                )
-            else:
-                await message.reply_text("⚠️ Book database mein nahi mili!")
-        except Exception as e:
-            print(f"WebDL Error: {e}")
-            await message.reply_text(f"⚠️ Kuch error aa gaya: {e}")
-        return
-    # ─────────────────────────────────────────────
-
-
+                print(f"Could not send to Log Channel: {e}")
+    # --------------------------------------------------
 
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
@@ -1695,24 +1646,3 @@ async def smart_clean_duplicates(bot, message):
     except Exception as e:
         await msg.edit(f"❌ **Error during cleanup:** `{e}`")
         logger.error(f"Smart Clean Error: {e}")
-
-
-# ════════════════════════════════════════════
-# 🚀 AUTO INDEXER FOR DATABASE CHANNEL
-# ════════════════════════════════════════════
-
-# 👇 Yahan apne Database Channel ka ID daal dena (starting with -100)
-DATABASE_CHANNEL_ID = -1003793921200 
-
-@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
-async def auto_index_new_files(client, message):
-    try:
-        from database.ia_filterdb import save_file
-        
-        # Bot file ko MongoDB mein auto-save kar lega
-        await save_file(message)
-        print(f"✅ [AUTO-INDEX] Successfully indexed message ID: {message.id} from Database Channel")
-        
-    except Exception as e:
-        print(f"⚠️ [AUTO-INDEX ERROR] Failed to index message ID {message.id}: {e}")
-        
