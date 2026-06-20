@@ -49,26 +49,26 @@ async def start(client, message):
 
     # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
     if len(message.command) > 1 and message.command[1].startswith("webdl_"):
-        mongo_id = message.command[1].replace("webdl_", "").strip()
-        if not mongo_id:
+        file_id = message.command[1].replace("webdl_", "").strip()
+        if not file_id:
             return await message.reply_text("⚠️ Book ID missing! Please click 'Clear Search' (✕) in the Mini App and search again.")
         try:
-            from bson.objectid import ObjectId
-            from database.ia_filterdb import Media 
+            # Bot ka apna native function use kar rahe hain
+            files_ = await get_file_details(file_id)
             
-            # MongoDB se file dhoondho
-            file_data = await Media.collection.find_one({"_id": ObjectId(mongo_id)})
-            
-            if file_data:
+            if files_:
+                file_data = files_[0]
+                title = clean_filename(file_data.file_name)
+                
                 await message.reply_cached_media(
-                    file_id=file_data['file_id'],
-                    caption=f"📚 **{file_data.get('file_name', 'Mikasa Library')}**\n\n📥 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴠɪᴀ ᴘʀᴇᴍɪᴜᴍ ᴍɪɴɪ ᴀᴘᴘ"
+                    file_id=file_data.file_id,
+                    caption=f"📚 **{title}**\n\n📥 ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ ᴠɪᴀ ᴘʀᴇᴍɪᴜᴍ ᴍɪɴɪ ᴀᴘᴘ"
                 )
             else:
                 await message.reply_text("⚠️ Book database mein nahi mili!")
         except Exception as e:
             print(f"WebDL Error: {e}")
-            await message.reply_text("⚠️ Database Error! Please click 'Clear Search' (✕) in the Mini App and search the book again.")
+            await message.reply_text(f"⚠️ Kuch error aa gaya: {e}")
         return
     # ─────────────────────────────────────────────
 
