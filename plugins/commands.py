@@ -37,42 +37,47 @@ async def start(client, message):
             await message.react(emoji="⚡️", big=True)
     m = message
     
-    # --- FIX: NEW USER LOGGER (LOG MESSAGE DISABLED) ---
+    # --- FIX: NEW USER LOGGER ---
     if message.chat.type == enums.ChatType.PRIVATE:
         if not await db.is_user_exist(message.from_user.id):
-            # User database mein save hoga (broadcast ke liye)
             await db.add_user(message.from_user.id, message.from_user.first_name)
-            
-            # 👇 Log channel mein message bhejne wala code hata diya gaya hai 👇
-            # try:
-            #     await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-            # except Exception as e:
-            #     pass
     # --------------------------------------------------
 
-
-    # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
+    # ── MIKASA MINI APP DIRECT DOWNLOAD & FSUB HANDLER ──
     if len(message.command) > 1 and message.command[1].startswith("webdl_"):
-        
-        # 🛑 FSUB BYPASS FIX: Pehle check karo user channel mein hai ya nahi
-        try:
-            if not await is_subscribed(client, message):
-                return # Agar join nahi kiya, toh yahin se wapas bhej do
-            if not await is_req_subscribed(client, message):
-                return
-        except Exception as e:
-            print(f"Fsub Check Error: {e}")
-
         file_id = message.command[1].replace("webdl_", "").strip()
         if not file_id:
-            return await message.reply_text("⚠️ Book ID missing! Please click 'Clear Search' (✕) in the Mini App and search again.")
+            return await message.reply_text("⚠️ Book ID missing! Please search again.")
+
+        # 🛑 FSUB BYPASS FIX: Pehle check karo user channel mein hai ya nahi
+        if not await db.has_premium_access(message.from_user.id):
+            try:
+                btn = []
+                # Main Auth Channels check
+                if AUTH_CHANNELS:
+                    btn += await is_subscribed(client, message.from_user.id, AUTH_CHANNELS)
+                if AUTH_REQ_CHANNELS:
+                    btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+                
+                if btn:
+                    # Agar user joined nahi hai, toh Fsub message do aur wapas Mini app/link par bhejo
+                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", url=f"https://t.me/{temp.U_NAME}?start=webdl_{file_id}")])
+                    await message.reply_photo(
+                        photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
+                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜɪs ʙᴏᴏᴋ.",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                    return # 🛑 Bot yahin ruk jayega, book nahi dega!
+            except Exception as e:
+                print(f"Fsub Check Error: {e}")
+
+        # 📗 Agar Fsub pass ho gaya (User joined hai), toh book de do
         try:
-            # Bot ka apna native function use kar rahe hain
             from database.ia_filterdb import get_file_details
             from utils import clean_filename
 
             files_ = await get_file_details(file_id)
-            
             if files_:
                 file_data = files_[0]
                 title = clean_filename(file_data.file_name)
@@ -88,6 +93,7 @@ async def start(client, message):
             await message.reply_text(f"⚠️ Kuch error aa gaya: {e}")
         return
     # ─────────────────────────────────────────────
+
 
 
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
