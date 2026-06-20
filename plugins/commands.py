@@ -37,15 +37,19 @@ async def start(client, message):
             await message.react(emoji="⚡️", big=True)
     m = message
     
-    # --- FIX: NEW USER LOGGER MOVED TO THE VERY TOP ---
+    # --- FIX: NEW USER LOGGER (LOG MESSAGE DISABLED) ---
     if message.chat.type == enums.ChatType.PRIVATE:
         if not await db.is_user_exist(message.from_user.id):
+            # User database mein save hoga (broadcast ke liye)
             await db.add_user(message.from_user.id, message.from_user.first_name)
-            try:
-                await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-            except Exception as e:
-                print(f"Could not send to Log Channel: {e}")
+            
+            # 👇 Log channel mein message bhejne wala code hata diya gaya hai 👇
+            # try:
+            #     await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
+            # except Exception as e:
+            #     pass
     # --------------------------------------------------
+
 
     # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
     if len(message.command) > 1 and message.command[1].startswith("webdl_"):
