@@ -109,29 +109,44 @@ async def give_filter(client, message):
         )
 
 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-
 @Client.on_message(filters.private & filters.text & filters.incoming & ~filters.regex(r"^/"))
-async def pm_text(client, message):
-    
-    # User ko Mini App ka button bhej do
-    await message.reply_text(
-        text=(
-            f"<b>👋 ʜᴇʏ {message.from_user.mention},\n\n"
-            "🔍 ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴍɪɴɪ ᴀᴘᴘ ɪꜱ ɴᴏᴡ ᴀᴄᴛɪᴠᴇ ꜰᴏʀ ʏᴏᴜʀ ꜱᴇᴀʀᴄʜᴇꜱ!\n\n"
-            "<blockquote>"
-            " 📚 ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴇᴀꜱɪʟʏ ꜰɪɴᴅ ᴀɴᴅ ᴅᴏᴡɴʟᴏᴀᴅ ʙᴏᴏᴋꜱ."
-            "</blockquote></b>"
-        ),
-        reply_markup=InlineKeyboardMarkup([[
-            # 👇 YAHAN APNA GITHUB PAGES WALA URL DAAL DO:
-            InlineKeyboardButton(
-                "🔍 ᴏᴘᴇɴ ᴍɪɴɪ ᴀᴘᴘ", 
-                web_app=WebAppInfo(url="https://unknowna999.github.io/Mikasa-ad/") 
-            )
-        ]])
-    )
+async def pm_text(bot, message):
+    bot_id = bot.me.id
+    content = message.text
+    user = message.from_user.first_name
+    user_id = message.from_user.id
+    if EMOJI_MODE:
+        try:
+            await message.react(emoji=random.choice(REACTIONS), big=True)
+        except Exception:
+            await message.react(emoji="⚡️", big=True)
+    if content.startswith(("#")):
+        return
+    try:
+        await mdb.update_top_messages(user_id, content)
+        pm_search = await db.pm_search_status(bot_id)
+        if pm_search:
+            await auto_filter(bot, message)
+        else:
+            await message.reply_text(
+                text=(
+                    f"<b>👋 ʜᴇʏ {user},\n\n"
+                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔 𝒂𝒏𝒅 𝒓𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝒑𝒂𝒑𝒆𝒓𝒔 𝒐𝒏𝒍𝒚 𝒊𝒏 𝒐𝒖𝒓 𝑳𝒊𝒃𝒓𝒂𝒓𝒚 𝑮𝒓𝒐𝒖𝒑. 𝑷𝒍𝒆𝒂𝒔𝒆 𝒋𝒐𝒊𝒏 𝒐𝒖𝒓 𝒈𝒓𝒐𝒖𝒑 𝒃𝒚 𝒄𝒍𝒊𝒄𝒌𝒊𝒏𝒈 𝒕𝒉𝒆 𝒃𝒖𝒕𝒕𝒐𝒏 𝒃𝒆𝒍𝒐𝒘 𝒕𝒐 𝒂𝒄𝒄𝒆𝒔𝒔 𝒖𝒏𝒍𝒊𝒎𝒊𝒕𝒆𝒅 𝒇𝒓𝒆𝒆 𝒌𝒏𝒐𝒘𝒍𝒆𝒅𝒈𝒆! 👇\n\n"
+                    "<blockquote>"
+                    "💡 We support open education. Search for any novel, academic book, or research paper in our main group."
+                    "</blockquote></b>"
 
+                ), reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ʀᴇǫᴜᴇsᴛ ʜᴇʀᴇ ", url=GRP_LNK)]]))
+            await bot.send_message(chat_id=LOG_CHANNEL,
+                                   text=(
+                                       f"<b>#𝐏𝐌_𝐌𝐒𝐆\n\n"
+                                       f"👤 Nᴀᴍᴇ : {user}\n"
+                                       f"🆔 ID : {user_id}\n"
+                                       f"💬 Mᴇssᴀɢᴇ : {content}</b>"
+                                   )
+                                   )
+    except Exception:
+        pass
 
 @Client.on_message(filters.command("clean_duplicates") & filters.user(ADMINS))
 async def clean_duplicates(client, message):
