@@ -48,8 +48,10 @@ async def start(client, message):
     # --------------------------------------------------
 
     # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
-    if len(message.command) == 2 and message.command[1].startswith("webdl_"):
-        mongo_id = message.command[1].split("webdl_")[1]
+    if len(message.command) > 1 and message.command[1].startswith("webdl_"):
+        mongo_id = message.command[1].replace("webdl_", "").strip()
+        if not mongo_id:
+            return await message.reply_text("⚠️ Book ID missing! Please click 'Clear Search' (✕) in the Mini App and search again.")
         try:
             from bson.objectid import ObjectId
             from database.ia_filterdb import Media 
@@ -66,9 +68,10 @@ async def start(client, message):
                 await message.reply_text("⚠️ Book database mein nahi mili!")
         except Exception as e:
             print(f"WebDL Error: {e}")
-            await message.reply_text("⚠️ Kuch error aa gaya. Thodi der baad try karein.")
+            await message.reply_text("⚠️ Database Error! Please click 'Clear Search' (✕) in the Mini App and search the book again.")
         return
     # ─────────────────────────────────────────────
+
 
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
