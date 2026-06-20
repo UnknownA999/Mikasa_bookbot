@@ -1672,3 +1672,24 @@ async def smart_clean_duplicates(bot, message):
     except Exception as e:
         await msg.edit(f"❌ **Error during cleanup:** `{e}`")
         logger.error(f"Smart Clean Error: {e}")
+
+
+# ════════════════════════════════════════════
+# 🚀 AUTO INDEXER FOR DATABASE CHANNEL
+# ════════════════════════════════════════════
+
+# 👇 Yahan apne Database Channel ka ID daal dena (starting with -100)
+DATABASE_CHANNEL_ID = -1003793921200 
+
+@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
+async def auto_index_new_files(client, message):
+    try:
+        from database.ia_filterdb import save_file
+        
+        # Bot file ko MongoDB mein auto-save kar lega
+        await save_file(message)
+        print(f"✅ [AUTO-INDEX] Successfully indexed message ID: {message.id} from Database Channel")
+        
+    except Exception as e:
+        print(f"⚠️ [AUTO-INDEX ERROR] Failed to index message ID {message.id}: {e}")
+        
