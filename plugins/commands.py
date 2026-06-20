@@ -53,11 +53,24 @@ async def start(client, message):
 
     # ── MIKASA MINI APP DIRECT DOWNLOAD HANDLER ──
     if len(message.command) > 1 and message.command[1].startswith("webdl_"):
+        
+        # 🛑 FSUB BYPASS FIX: Pehle check karo user channel mein hai ya nahi
+        try:
+            if not await is_subscribed(client, message):
+                return # Agar join nahi kiya, toh yahin se wapas bhej do
+            if not await is_req_subscribed(client, message):
+                return
+        except Exception as e:
+            print(f"Fsub Check Error: {e}")
+
         file_id = message.command[1].replace("webdl_", "").strip()
         if not file_id:
             return await message.reply_text("⚠️ Book ID missing! Please click 'Clear Search' (✕) in the Mini App and search again.")
         try:
             # Bot ka apna native function use kar rahe hain
+            from database.ia_filterdb import get_file_details
+            from utils import clean_filename
+
             files_ = await get_file_details(file_id)
             
             if files_:
