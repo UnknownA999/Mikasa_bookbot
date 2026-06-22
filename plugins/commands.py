@@ -41,11 +41,36 @@ async def start(client, message):
     if message.chat.type == enums.ChatType.PRIVATE:
         if not await db.is_user_exist(message.from_user.id):
             await db.add_user(message.from_user.id, message.from_user.first_name)
-            try:
-                await client.send_message(LOG_CHANNEL, script.LOG_TEXT_P.format(message.from_user.id, message.from_user.mention))
-            except Exception as e:
-                print(f"Could not send to Log Channel: {e}")
+            # Log channel msg disabled to keep it clean (as discussed before)
+            pass 
     # --------------------------------------------------
+
+    # 🛑 UNIVERSAL FSUB CHECK FOR ALL BOT LINKS (DEEP LINKS) 🛑
+    if len(message.command) > 1 and message.command[1] not in ["subscribe", "error", "okay", "help", "about"]:
+        try:
+            if not await db.has_premium_access(message.from_user.id):
+                btn = []
+                if AUTH_CHANNELS:
+                    btn += await is_subscribed(client, message.from_user.id, AUTH_CHANNELS)
+                if AUTH_REQ_CHANNELS:
+                    btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+                
+                if btn:
+                    # User ko wahi link try again mein denge jispar usne click kiya tha
+                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", url=f"https://t.me/{temp.U_NAME}?start={message.command[1]}")])
+                    await message.reply_photo(
+                        photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
+                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴀʟʟ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜɪs ʙᴏᴏᴋ.",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                    return # Join nahi kiya toh bot yahin ruk jayega!
+        except Exception as e:
+            print(f"Universal Fsub Check Error: {e}")
+    # ─────────────────────────────────────────────
+
+    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
+
 
     if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
         _, userid, verify_id, file_id = m.command[1].split("_", 3)
