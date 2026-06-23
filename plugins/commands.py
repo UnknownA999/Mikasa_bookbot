@@ -60,7 +60,7 @@ async def start(client, message):
                     btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", url=f"https://t.me/{temp.U_NAME}?start={message.command[1]}")])
                     await message.reply_photo(
                         photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
-                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴀʟʟ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜɪs ʙᴏᴏᴋ.",
+                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴀʟʟ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ .",
                         reply_markup=InlineKeyboardMarkup(btn),
                         parse_mode=enums.ParseMode.HTML
                     )
