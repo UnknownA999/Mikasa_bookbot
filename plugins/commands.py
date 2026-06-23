@@ -223,13 +223,7 @@ async def start(client, message):
             start_id, end_id = int(start_id), int(end_id)
             target_channel = -1003782307099 # Your Data Media Channel
             
-            # ---> 16-HOUR BATCH VERIFICATION LOCK <---
-            if not await db.has_premium_access(message.from_user.id):
-
-            # -----------------------------------------
-            
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
-
             
             # List to keep track of the files we send
             sent_messages = []
