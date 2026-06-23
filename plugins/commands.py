@@ -69,47 +69,7 @@ async def start(client, message):
             print(f"Universal Fsub Check Error: {e}")
     # ─────────────────────────────────────────────
 
-    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
 
-
-    if len(m.command) == 2 and m.command[1].startswith(('notcopy', 'sendall')):
-        _, userid, verify_id, file_id = m.command[1].split("_", 3)
-        user_id = int(userid)
-        grp_id = temp.VERIFICATIONS.get(user_id, 0)
-        settings = await get_settings(grp_id)         
-        verify_id_info = await db.get_verify_id_info(user_id, verify_id)
-        if not verify_id_info or verify_id_info["verified"]:
-            return await message.reply("<b>ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ ᴛʀʏ ᴀɢᴀɪɴ...</b>")  
-        
-        ist_timezone = pytz.timezone('Asia/Kolkata')
-        ist_timezone = pytz.timezone('Asia/Kolkata')
-        current_time = datetime.now(tz=ist_timezone)
-        
-        # ENDLESS LOOP FIX: Always update the primary timestamp and ignore tiers
-        result = await db.update_notcopy_user(user_id, {"last_verified": current_time})
-        await db.update_verify_id_info(user_id, verify_id, {"verified": True})
-        
-        num = 1 
-        msg = script.VERIFY_COMPLETE_TEXT
-
-        if message.command[1].startswith('sendall'):
-            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=allfiles_{grp_id}_{file_id}"
-        else:
-            verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=file_{grp_id}_{file_id}"
-        await client.send_message(settings['log'], script.VERIFIED_LOG_TEXT.format(m.from_user.mention, user_id, datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d %B %Y'), num))
-        btn = [[
-            InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇ ✅", url=verifiedfiles),
-        ]]
-        reply_markup=InlineKeyboardMarkup(btn)
-        dlt=await m.reply_photo(
-            photo=(VERIFY_IMG),
-            caption=msg.format(message.from_user.mention, get_readable_time(TWO_VERIFY_GAP)),
-            reply_markup=reply_markup,
-            parse_mode=enums.ParseMode.HTML
-        )
-        await asyncio.sleep(300)
-        await dlt.delete()
-        return         
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
                     InlineKeyboardButton('❤️ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ❤️', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
@@ -254,37 +214,7 @@ async def start(client, message):
         return  
     
     # --- BATCH VERIFICATION RECEIVER ---
-    if len(message.command) == 2 and message.command[1].startswith('batchcopy_'):
-        _, userid, verify_id, start_id, end_id = message.command[1].split("_")
-        user_id = int(userid)
-        
-        verify_id_info = await db.get_verify_id_info(user_id, verify_id)
-        if not verify_id_info or verify_id_info["verified"]:
-            return await message.reply("<b>ʟɪɴᴋ ᴇxᴘɪʀᴇᴅ ᴛʀʏ ᴀɢᴀɪɴ...</b>")  
-        
-        ist_timezone = pytz.timezone('Asia/Kolkata')
-        current_time = datetime.now(tz=ist_timezone)
-        
-        # Resets the 30-minute timer for the user
-        await db.update_notcopy_user(user_id, {"last_verified": current_time})
-        await db.update_verify_id_info(user_id, verify_id, {"verified":True})
-        
-        # Generates the final, unlocked batch link
-        verifiedfiles = f"https://telegram.me/{temp.U_NAME}?start=batch_{start_id}_{end_id}"
-        
-        btn = [[
-            InlineKeyboardButton("✅ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ɢᴇᴛ ꜰɪʟᴇꜱ ✅", url=verifiedfiles),
-        ]]
-        reply_markup=InlineKeyboardMarkup(btn)
-        dlt=await message.reply_photo(
-            photo=(VERIFY_IMG),
-            caption=script.VERIFY_COMPLETE_TEXT.format(message.from_user.mention),
-            reply_markup=reply_markup,
-            parse_mode=enums.ParseMode.HTML
-        )
-        await asyncio.sleep(300)
-        await dlt.delete()
-        return         
+
 
     # --- BATCH DELIVERY & VERIFICATION CHECK ---
     if len(message.command) == 2 and message.command[1].startswith('batch_'):
@@ -295,40 +225,7 @@ async def start(client, message):
             
             # ---> 16-HOUR BATCH VERIFICATION LOCK <---
             if not await db.has_premium_access(message.from_user.id):
-                user_verified = await db.is_user_verified(message.from_user.id)
-                time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
-                
-                if not user_verified or time_expired:
-                    verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                    await db.create_verify_id(message.from_user.id, verify_id)
-                    
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=batchcopy_{message.from_user.id}_{verify_id}_{start_id}_{end_id}"
-                    
-                    try:
-                        verify = await get_shortlink(verify_url, 0, False, False)
-                    except:
-                        verify = verify_url
-                        
-                    buttons = [
-                        [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                        [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                        [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")],
-                        [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
-                    ]
-                    
-                    verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
-                    
-                    dlt = await message.reply_text(
-                        text=verify_text,
-                        protect_content=True,
-                        reply_markup=InlineKeyboardMarkup(buttons),
-                        parse_mode=enums.ParseMode.HTML
-                    )
 
-                    await asyncio.sleep(300) 
-                    await dlt.delete()
-                    await message.delete()
-                    return
             # -----------------------------------------
             
             status_msg = await message.reply("🚀 **Sending your files, please wait...**")
@@ -417,49 +314,7 @@ async def start(client, message):
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
         # ---> 16-HOUR VERIFICATION SYSTEM <---
-        settings = await get_settings(int(grp_id))
-        is_verify = settings.get('is_verify', True)
-        
-        if is_verify:
-            user_verified = await db.is_user_verified(message.from_user.id)
-            # 57600 seconds = exactly 16 hours
-            time_expired = await db.use_second_shortener(message.from_user.id, 57600) 
-            
-            if not user_verified or time_expired:
-                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                await db.create_verify_id(message.from_user.id, verify_id)
-                temp.VERIFICATIONS[message.from_user.id] = int(grp_id)
-                
-                if data.startswith("allfiles"):
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{file_id}"
-                else:
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{file_id}"
-                
-                try:
-                    verify = await get_shortlink(verify_url, int(grp_id), False, False)
-                except Exception as e:
-                    logger.error(f"Shortlink Error: {e}")
-                    verify = verify_url
-                    
-                howtodownload = settings.get('tutorial', TUTORIAL) if settings else TUTORIAL
-                
-                buttons = [
-                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", url="https://t.me/mikasa_premium")],
-                    [InlineKeyboardButton(text="☕ ᴅᴏɴᴀᴛᴇ ᴜꜱ ᴛᴏ ᴘʀᴏᴠɪᴅᴇ ᴘʀᴇᴍɪᴜᴍ ʙᴏᴏᴋꜱ ☕", callback_data="donation")]
-                ]
-                
-                verify_text = f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**."
-                
-                await message.reply_text(
-                    text=verify_text,
-                    protect_content=False,
-                    reply_markup=InlineKeyboardMarkup(buttons),
-                    parse_mode=enums.ParseMode.HTML
-                )
 
-                return
         # -------------------------------------
 
     # Now, await the file details task
