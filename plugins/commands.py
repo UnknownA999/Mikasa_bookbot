@@ -1545,7 +1545,7 @@ async def auto_index_new_files(client, message):
 # 📋 COMMUNITY REQUEST BOARD SYSTEM
 # ════════════════════════════════════════════
 
-# Temporary storage for requested books (Baad mein isko MongoDB mein bhi shift kar sakte hain)
+# Temporary storage for requested books
 temp.REQUESTED_BOOKS = []
 
 @Client.on_message(filters.command("need") & filters.user(ADMINS))
@@ -1556,33 +1556,45 @@ async def add_book_request(client, message):
     book_name = message.text.split(" ", 1)[1]
     
     if book_name in temp.REQUESTED_BOOKS:
-        return await message.reply_text("⚠️ Yeh book already request list mein hai!")
+        return await message.reply_text("⚠️ This book is already in the request list!")
         
     # Add to the board
     temp.REQUESTED_BOOKS.append(book_name)
     
     # Send confirmation to Admin
-    await message.reply_text(f"✅ **Request Added:** `{book_name}`\n\nAb main ise sabhi users ko broadcast kar raha hu...")
+    await message.reply_text(f"✅ **Request Added:** `{book_name}`\n\nBroadcasting to all users now...")
     
     # 📢 AUTO-BROADCAST TO ALL USERS 
     users = await db.get_all_users()
     b_msg = (
         f"📢 **COMMUNITY REQUEST!** 📢\n\n"
-        f"Humari library ko is book ki zarurat hai:\n"
+        f"Our library is currently looking for the following book:\n"
         f"📚 **{book_name}**\n\n"
-        f"Agar aapke paas is book ki PDF/EPUB hai, ya aap physical copy scan kar sakte hain, "
-        f"toh kripya isey bot par bhej dein.\n\n"
-        f"**Format:** `[Title] [Language] by [Author].pdf`\n\n"
-        f"Aapka ek chota sa contribution kisi ki bohot madad kar sakta hai! ❤️"
+        f"If you have the PDF/EPUB version of this book, or if you can scan a physical copy, "
+        f"please upload it directly to this bot.\n\n"
+        f"Your small contribution can be a huge help to someone in the community! ❤️"
     )
+    
+    # Interactive Buttons for the Broadcast
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📤 How to Upload a Book", callback_data="upload_instructions")],
+        [
+            InlineKeyboardButton("📋 View All Requests", callback_data="view_requests"),
+            InlineKeyboardButton("🏆 Leaderboard", callback_data="show_leaderboard")
+        ]
+    ])
     
     success = 0
     failed = 0
     async for user in users:
         try:
-            await client.send_message(user['id'], text=b_msg)
+            await client.send_message(
+                chat_id=user['id'], 
+                text=b_msg,
+                reply_markup=reply_markup
+            )
             success += 1
-            await asyncio.sleep(0.1) # FloodWait se bachne ke liye thoda delay
+            await asyncio.sleep(0.1) # Prevents FloodWait
         except Exception:
             failed += 1
             
@@ -1592,14 +1604,19 @@ async def add_book_request(client, message):
 @Client.on_message(filters.command("requests"))
 async def view_request_board(client, message):
     if not temp.REQUESTED_BOOKS:
-        return await message.reply_text("📋 **Community Request Board**\n\nFilhaal humari library ko kisi nayi book ki zarurat nahi hai. Sab mast chal raha hai! ✨")
+        return await message.reply_text("📋 **Community Request Board**\n\nOur library doesn't have any pending book requests right now. Everything is up to date! ✨")
         
-    board_text = "📋 **COMMUNITY REQUEST BOARD** 📋\n\nHumari library mein in books ki request aayi hai. Agar aapke paas inme se koi bhi book hai, toh format ke hisaab se bot ko send karein aur doosron ki madad karein!\n\n"
+    board_text = "📋 **COMMUNITY REQUEST BOARD** 📋\n\nOur community is looking for the following books. If you have any of these, please rename them to the required format and send them to the bot to help others!\n\n"
     
     for i, book in enumerate(temp.REQUESTED_BOOKS, 1):
         board_text += f"{i}. 📚 **{book}**\n"
         
-    board_text += "\n💡 *Hint: Book upload format `Title [Language] by Author.pdf` hona chahiye.*"
+    board_text += "\n💡 *Hint: Make sure your file is named exactly like `Title [Language] by Author.pdf` before uploading.*"
     
-    await message.reply_text(board_text)
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📤 How to Upload a Book", callback_data="upload_instructions")],
+        [InlineKeyboardButton("🏆 Contributors Leaderboard", callback_data="show_leaderboard")]
+    ])
+    
+    await message.reply_text(board_text, reply_markup=reply_markup)
 
