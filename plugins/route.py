@@ -153,35 +153,3 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
             "Accept-Ranges": "bytes",
         },
     )
-
-
-@Client.on_callback_query(filters.regex("^upload_instructions$"))
-async def upload_instructions_cb(client, query):
-    text = (
-        "📤 **How to Upload a Book:**\n\n"
-        "1. Rename your PDF/EPUB file strictly in this format:\n"
-        "   `[Book Title] [Language] by [Author].pdf`\n"
-        "   *Example:* `Atomic Habits [English] by James Clear.pdf`\n\n"
-        "2. Send that renamed file directly to this bot.\n\n"
-        "3. If the format is correct, the bot will add it to the library, and you will earn contributor points! 🏆"
-    )
-    await query.message.reply_text(text)
-    await query.answer()
-
-@Client.on_callback_query(filters.regex("^view_requests$"))
-async def view_requests_cb(client, query):
-    from utils import temp 
-    
-    if not temp.REQUESTED_BOOKS:
-        # Show a quick popup if list is empty
-        await query.answer("No pending requests right now! Everything is up to date ✨", show_alert=True)
-        return
-
-    board_text = "📋 **COMMUNITY REQUEST BOARD** 📋\n\nOur community is looking for the following books:\n\n"
-    for i, book in enumerate(temp.REQUESTED_BOOKS, 1):
-        board_text += f"{i}. 📚 **{book}**\n"
-    
-    board_text += "\n💡 *Hint: Rename your file properly before sending.*"
-    
-    await query.message.reply_text(board_text)
-    await query.answer()
