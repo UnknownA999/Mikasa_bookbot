@@ -1,4 +1,3 @@
-from library_builder import background_book_scraper
 import os  # <--- ADD THIS LINE
 import sys
 import glob
