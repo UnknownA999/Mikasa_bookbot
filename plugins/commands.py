@@ -1650,3 +1650,70 @@ async def view_requests_cb(client, query):
     
     await query.message.reply_text(board_text)
     await query.answer()
+
+
+# ════════════════════════════════════════════
+# 📤 USER UPLOAD & FORMAT CHECKER SYSTEM
+# ════════════════════════════════════════════
+import re
+
+DATABASE_CHANNEL_ID = -1003793921200 # Tumhara Bookhubz Database Channel
+
+@Client.on_message(filters.private & filters.document)
+async def handle_user_uploads(client, message):
+    # Sirf books (pdf, epub, mobi, azw3) allow karenge
+    file_name = message.document.file_name
+    if not file_name or not file_name.lower().endswith(('.pdf', '.epub', '.mobi', '.azw3')):
+        return 
+
+    # 🛑 FORMAT CHECK: [Title] [Language] by [Author].ext
+    match = re.match(r"^(.+?) \[(.+?)\] by (.+?)\.(pdf|epub|mobi|azw3)$", file_name, re.IGNORECASE)
+    
+    if not match:
+        return await message.reply_text(
+            "⚠️ **Invalid File Name Format!**\n\n"
+            "To keep our library clean, please rename your file exactly like this:\n"
+            "`[Book Title] [Language] by [Author].pdf`\n\n"
+            "**Example:** `Atomic Habits [English] by James Clear.pdf`\n\n"
+            "Rename the file in your file manager and send it again! 📤"
+        )
+    
+    title, lang, author, ext = match.groups()
+    status_msg = await message.reply_text("⏳ Processing your upload...")
+    
+    try:
+        # 1. Forward to your Database Channel
+        sent_msg = await client.copy_message(
+            chat_id=DATABASE_CHANNEL_ID,
+            from_chat_id=message.chat.id,
+            message_id=message.id,
+            caption=f"📚 **{title}**\n👤 {author}\n🌐 {lang}\n\n📤 Uploaded by: {message.from_user.mention}"
+        )
+        
+        # 2. Save/Index to MongoDB
+        from database.ia_filterdb import save_file
+        await save_file(sent_msg)
+        
+        # 3. Check Request Board and Auto-Clear
+        cleared = False
+        from utils import temp
+        for req_book in list(temp.REQUESTED_BOOKS):
+            # Check if requested book name is anywhere in the uploaded title
+            if req_book.lower() in title.lower() or title.lower() in req_book.lower():
+                temp.REQUESTED_BOOKS.remove(req_book)
+                cleared = True
+                break
+        
+        # 4. (Future) Leaderboard Logic will go here 
+        # await db.add_contributor_point(message.from_user.id)
+        
+        # 5. Success Message
+        success_text = f"🎉 **Upload Successful!**\n\nThank you for uploading **{title}**! It has been indexed in our library."
+        if cleared:
+            success_text += "\n\n🌟 **BINGO!** You just fulfilled a Community Request! Your fellow readers are going to love you!"
+            
+        await status_msg.edit_text(success_text)
+        
+    except Exception as e:
+        print(f"Upload Error: {e}")
+        await status_msg.edit_text("❌ An error occurred while adding the book to the database.")
