@@ -1533,9 +1533,14 @@ async def auto_index_new_files(client, message):
     try:
         from database.ia_filterdb import save_file
         
+        # FIX: Extract the actual file/media from the message
+        media = message.document or message.video or message.audio
+        if not media:
+            return
+            
         # Bot file ko automatically MongoDB mein save kar lega
-        await save_file(message)
-        print(f"✅ [AUTO-INDEX] Successfully indexed message ID: {message.id} from Database Channel")
+        await save_file(media)
+        print(f"✅ [AUTO-INDEX] Successfully indexed: {getattr(media, 'file_name', 'Unknown File')}")
         
     except Exception as e:
         print(f"⚠️ [AUTO-INDEX ERROR] Failed to index message ID {message.id}: {e}")
