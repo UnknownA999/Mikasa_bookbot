@@ -1708,30 +1708,40 @@ async def handle_user_uploads(client, message):
     status_msg = await message.reply_text("⏳ Processing your upload...")
     
     try:
-        # 1. Forward to your Database Channel
-        sent_msg = await client.copy_message(
+        # Dummy class banayi hai taaki database perfectly file_id aur caption read kar sake
+        class MockMedia:
+            def __init__(self, document, msg):
+                self.file_id = document.file_id
+                self.file_name = getattr(document, 'file_name', 'Unknown')
+                self.file_size = getattr(document, 'file_size', 0)
+                self.file_type = "document"
+                self.mime_type = getattr(document, 'mime_type', 'application/pdf')
+                self.caption = msg.caption
+
+        # 1. Forward to your Database Channel (Send as fresh cached media)
+        sent_msg = await client.send_cached_media(
             chat_id=DATABASE_CHANNEL_ID,
-            from_chat_id=message.chat.id,
-            message_id=message.id,
+            file_id=message.document.file_id,
             caption=f"📚 **{title}**\n👤 {author}\n🌐 {lang}\n\n📤 Uploaded by: {message.from_user.mention}"
         )
         
-        # 2. Save/Index to MongoDB
+        # 2. Save/Index to MongoDB (FIXED)
         from database.ia_filterdb import save_file
-        await save_file(sent_msg)
+        media_obj = MockMedia(message.document, sent_msg)
+        await save_file(media_obj)
         
         # 3. Check Request Board and Auto-Clear
         cleared = False
         from utils import temp
         for req_book in list(temp.REQUESTED_BOOKS):
-            # Check if requested book name is anywhere in the uploaded title
             if req_book.lower() in title.lower() or title.lower() in req_book.lower():
                 temp.REQUESTED_BOOKS.remove(req_book)
                 cleared = True
                 break
         
-        # 4. (Future) Leaderboard Logic will go here 
-        # await db.add_contributor_point(message.from_user.id)
+        # 4. Leaderboard Logic
+        from database.users_chats_db import db
+        await db.add_contributor_point(message.from_user.id, message.from_user.first_name)
         
         # 5. Success Message
         success_text = f"🎉 **Upload Successful!**\n\nThank you for uploading **{title}**! It has been indexed in our library."
@@ -1742,4 +1752,4 @@ async def handle_user_uploads(client, message):
         
     except Exception as e:
         print(f"Upload Error: {e}")
-        await status_msg.edit_text("❌ An error occurred while adding the book to the database.")
+        await status_msg.edit_text(f"❌ An error occurred while adding the book to the database.\n\nError: `{e}`")
