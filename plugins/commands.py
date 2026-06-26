@@ -1528,22 +1528,36 @@ async def smart_clean_duplicates(bot, message):
 
 DATABASE_CHANNEL_ID = -1003793921200 
 
-@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & (filters.document | filters.video | filters.audio))
+# Dummy class banayi hai taaki tumhare database ko saari info perfectly mile
+class MockMedia:
+    def __init__(self, document, message):
+        self.file_id = document.file_id
+        self.file_name = getattr(document, 'file_name', 'Unknown')
+        self.file_size = getattr(document, 'file_size', 0)
+        self.file_type = "document"
+        self.mime_type = getattr(document, 'mime_type', 'application/pdf')
+        self.caption = message.caption
+
+# group=1 lagaya hai taaki koi aur message handler isko na roke!
+@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & filters.document, group=1)
 async def auto_index_new_files(client, message):
     try:
         from database.ia_filterdb import save_file
         
-        # FIX: Extract the actual file/media from the message
-        media = message.document or message.video or message.audio
-        if not media:
+        if not message.document:
             return
             
-        # Bot file ko automatically MongoDB mein save kar lega
-        await save_file(media)
-        print(f"✅ [AUTO-INDEX] Successfully indexed: {getattr(media, 'file_name', 'Unknown File')}")
+        # File aur Message dono ko combine karke database mein bhej rahe hain
+        media_obj = MockMedia(message.document, message)
+        saved, status = await save_file(media_obj)
         
+        if saved:
+            print(f"✅ [AUTO-INDEX SUCCESS] Indexed: {media_obj.file_name}")
+        else:
+            print(f"⚠️ [AUTO-INDEX SKIP] File already exists or ignored: {media_obj.file_name}")
+            
     except Exception as e:
-        print(f"⚠️ [AUTO-INDEX ERROR] Failed to index message ID {message.id}: {e}")
+        print(f"❌ [AUTO-INDEX ERROR]: {e}")
 
 
 # ════════════════════════════════════════════
