@@ -1685,17 +1685,21 @@ async def handle_user_uploads(client, message):
     if not file_name or not file_name.lower().endswith(('.pdf', '.epub', '.mobi', '.azw3')):
         return 
 
-    # 🛑 FORMAT CHECK: [Title] [Language] by [Author].ext
-    match = re.match(r"^(.+?) \[(.+?)\] by (.+?)\.(pdf|epub|mobi|azw3)$", file_name, re.IGNORECASE)
+    # 🛑 FLEXIBLE FORMAT CHECK: Title [Lang] by Author.ext 
+    # Yeh underscores _, brackets [], parenthesis (), aur aage-peeche ke spaces sab handle kar lega!
+    match = re.match(r"^(.+?)[ _]*[\[\(](.+?)[\]\)][ _]*by[ _]*(.+?)\.(pdf|epub|mobi|azw3)$", file_name, re.IGNORECASE)
     
     if not match:
         return await message.reply_text(
             "⚠️ **Invalid File Name Format!**\n\n"
-            "To keep our library clean, please rename your file exactly like this:\n"
-            "`[Book Title] [Language] by [Author].pdf`\n\n"
-            "**Example:** `Atomic Habits [English] by James Clear.pdf`\n\n"
-            "Rename the file in your file manager and send it again! 📤"
+            "Please include the **Language** in brackets and the **Author** after 'by'.\n\n"
+            "✅ **Accepted Formats:**\n"
+            "• `Book Name [English] by Author.pdf`\n"
+            "• `Book_Name_Vol_1_[eng]_by_Author.epub`\n"
+            "• `Book Name (Eng) by Author.mobi`\n\n"
+            "Rename the file and send it again! 📤"
         )
+
     
     title, lang, author, ext = match.groups()
     status_msg = await message.reply_text("⏳ Processing your upload...")
