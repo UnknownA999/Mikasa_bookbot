@@ -1653,6 +1653,38 @@ async def upload_instructions_cb(client, query):
     await query.message.reply_text(text)
     await query.answer()
 
+@Client.on_callback_query(filters.regex("^show_leaderboard$"))
+async def show_leaderboard_cb(client, query):
+    from database.users_chats_db import db
+    top_users = await db.get_top_contributors()
+    
+    if not top_users:
+        return await query.answer("No contributors yet! Be the first to upload a book! 🏆", show_alert=True)
+    
+    text = "🏆 **TOP CONTRIBUTORS LEADERBOARD** 🏆\n\n"
+    text += "These are the heroes keeping our library alive:\n\n"
+    
+    medals = ["🥇", "🥈", "🥉"]
+    for i, user in enumerate(top_users):
+        rank = medals[i] if i < 3 else f"**{i+1}.**"
+        name = user.get('name', 'Unknown Reader')
+        points = user.get('contributions', 0)
+        
+        text += f"{rank} **{name}** - `{points} Books`\n"
+        
+    text += "\n💡 *Upload requested books to get your name on this board!*"
+    
+    # Back button to return to requests or main menu
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Back to Requests", callback_data="view_requests")]
+    ])
+    
+    # Agar same message edit ho raha hai
+    if query.message.text:
+        await query.message.edit_text(text, reply_markup=reply_markup)
+    else:
+        await query.message.reply_text(text, reply_markup=reply_markup)
+
 @Client.on_callback_query(filters.regex("^view_requests$"))
 async def view_requests_cb(client, query):
     from utils import temp 
