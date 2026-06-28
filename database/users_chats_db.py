@@ -419,7 +419,20 @@ class Database:
 
     async def update_movie_update_status(self, bot_id, enable):
         await self.update_bot_setting(bot_id, 'MOVIE_UPDATE_NOTIFICATION', enable)
-     
+
+    async def add_contributor_point(self, id, name):
+        # User ke khate mein +1 upload point jodne ke liye
+        user = await self.col.find_one({'id': int(id)})
+        if user:
+            current_points = user.get('contributions', 0)
+            await self.col.update_one({'id': int(id)}, {'$set': {'contributions': current_points + 1, 'name': name}})
+
+    async def get_top_contributors(self):
+        # Sabse zyada books upload karne wale Top 10 users nikalne ke liye
+        cursor = self.col.find({'contributions': {'$gt': 0}}).sort('contributions', -1).limit(10)
+        top_users = await cursor.to_list(length=10)
+        return top_users
+
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
 
