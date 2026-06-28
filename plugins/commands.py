@@ -1739,10 +1739,10 @@ async def handle_user_uploads(client, message):
                 cleared = True
                 break
         
-        # 4. Leaderboard Logic
+        # 4. Leaderboard Logic Activated! 🏆
         from database.users_chats_db import db
         await db.add_contributor_point(message.from_user.id, message.from_user.first_name)
-        
+
         # 5. Success Message
         success_text = f"🎉 **Upload Successful!**\n\nThank you for uploading **{title}**! It has been indexed in our library."
         if cleared:
