@@ -1868,17 +1868,28 @@ async def report_reason_cb(client, query):
         )
         return
         
-    # Send Log to Admin
+    # 🌟 FETCH FILE NAME FROM DATABASE
+    from database.ia_filterdb import get_file_details
+    files_ = await get_file_details(file_id)
+    file_name = files_[0].file_name if files_ else "Unknown File"
+        
     from info import LOG_CHANNEL
     log_msg = (
         f"🚨 **FILE REPORTED** 🚨\n\n"
         f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📚 **Book Name:** `{file_name}`\n"
         f"📄 **File ID:** `{file_id}`\n"
         f"⚠️ **Reason:** {reason_text}\n\n"
-        f"🔍 *Check this file and use /delete if it is actually fake.*"
+        f"🔍 *Check this file below and use /delete if it is actually fake.*"
     )
-    await client.send_message(LOG_CHANNEL, log_msg)
     
+    # 🌟 SEND ACTUAL FILE TO LOG CHANNEL FOR QUICK CHECK
+    try:
+        await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id, caption=log_msg)
+    except Exception:
+        # Fallback just in case file forwarding fails
+        await client.send_message(LOG_CHANNEL, log_msg)
+        
     await query.message.edit_text("✅ **Thank you!** Your report has been sent to the admins. We will review and delete this file if necessary.")
 
 # Custom typed reason command
@@ -1892,16 +1903,22 @@ async def custom_report_cmd(client, message):
         
     reason_text = message.text.split(" ", 1)[1]
     file_id = message.reply_to_message.document.file_id
+    file_name = message.reply_to_message.document.file_name or "Unknown File"
     user = message.from_user
     
     from info import LOG_CHANNEL
     log_msg = (
         f"🚨 **FILE REPORTED (CUSTOM REASON)** 🚨\n\n"
         f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📚 **Book Name:** `{file_name}`\n"
         f"📄 **File ID:** `{file_id}`\n"
         f"⚠️ **Reason:** {reason_text}\n\n"
-        f"🔍 *Check this file and use /delete if it is actually fake.*"
+        f"🔍 *Check this file below and use /delete if it is actually fake.*"
     )
     
-    await client.send_message(LOG_CHANNEL, log_msg)
+    try:
+        await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id, caption=log_msg)
+    except Exception:
+        await client.send_message(LOG_CHANNEL, log_msg)
+        
     await message.reply_text("✅ **Thank you!** Your custom report has been sent to the admins.")
