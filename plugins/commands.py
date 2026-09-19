@@ -1785,3 +1785,34 @@ async def handle_user_uploads(client, message):
     except Exception as e:
         print(f"Upload Error: {e}")
         await status_msg.edit_text(f"❌ An error occurred while adding the book to the database.\n\nError: `{e}`")
+
+# ════════════════════════════════════════════
+# 📋 MANUAL REQUEST BOARD UPDATER (ADMIN ONLY)
+# ════════════════════════════════════════════
+
+@Client.on_message(filters.command("addreq") & filters.user(ADMINS))
+async def manual_add_req(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ **Format:** `/addreq [Book Name]`")
+    
+    book_name = message.text.split(" ", 1)[1]
+    from utils import temp
+    if book_name not in temp.REQUESTED_BOOKS:
+        temp.REQUESTED_BOOKS.append(book_name)
+        await message.reply_text(f"✅ **Added to Board:** `{book_name}`")
+    else:
+        await message.reply_text("⚠️ This book is already on the board!")
+
+@Client.on_message(filters.command("delreq") & filters.user(ADMINS))
+async def manual_del_req(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ **Format:** `/delreq [Book Name]`")
+    
+    book_name = message.text.split(" ", 1)[1]
+    from utils import temp
+    if book_name in temp.REQUESTED_BOOKS:
+        temp.REQUESTED_BOOKS.remove(book_name)
+        await message.reply_text(f"🗑️ **Removed from Board:** `{book_name}`")
+    else:
+        await message.reply_text("⚠️ This book is not on the board!")
+
