@@ -262,6 +262,30 @@ async def start(client, message):
 
     
     data = message.command[1]
+
+    # ════════════════════════════════════════════
+    # 🟢 VERIFICATION COMPLETION LOGIC (STOP LOOP)
+    # ════════════════════════════════════════════
+    if data.startswith("notcopy") or data.startswith("sendall"):
+        try:
+            _, req_user_id, verify_id, file_or_key = data.split("_", 3)
+            if str(message.from_user.id) != str(req_user_id):
+                return await message.reply_text("⚠️ **This link is not for you!**")
+            
+            # Approve User Verification in Database
+            try:
+                await db.update_verify_status(message.from_user.id)
+            except:
+                pass
+            
+            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access to all books for the next 16 hours. Enjoy! ✨")
+            
+            # Change data to deliver the actual file silently!
+            data = f"allfiles_0_{file_or_key}" if data.startswith("sendall") else f"file_0_{file_or_key}"
+        except Exception as e:
+            print(f"Verify Error: {e}")
+            return await message.reply_text("❌ Verification Error! Please try again.")
+
     try:
         _, grp_id, file_id = data.split("_", 2)
         grp_id = int(grp_id)
@@ -270,6 +294,7 @@ async def start(client, message):
 
     # Fetch file details concurrently with user checks
     file_details_task = asyncio.create_task(get_file_details(file_id))
+
 
     if not await db.has_premium_access(message.from_user.id): 
         try:
