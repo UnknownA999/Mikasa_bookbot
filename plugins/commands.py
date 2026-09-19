@@ -275,8 +275,10 @@ async def start(client, message):
             # Approve User Verification in Database
             try:
                 await db.update_verify_status(message.from_user.id)
-            except:
-                pass
+            except Exception as e:
+                print(f"DB Error: {e}")
+                await message.reply_text(f"⚠️ Debug Error: {e}")
+
             
             await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access to all books for the next 16 hours. Enjoy! ✨")
             
