@@ -571,8 +571,18 @@ async def start(client, message):
                 btn.append(buy_buttons)
 
 
-    # 4. ADD JOIN CHANNEL BUTTON (Always at the bottom)
+    # 4. ADD REPORT, UPLOAD & TUTORIAL BUTTONS
+    btn.append([
+        InlineKeyboardButton("🚨 Report File", callback_data=f"report#{file_id}")
+    ])
+    btn.append([
+        InlineKeyboardButton("📤 Upload Book", callback_data="upload_instructions"),
+        InlineKeyboardButton("❓ How to Upload", url="https://t.me/YOUR_VIDEO_TUTORIAL_LINK") # Yahan apna video link daal dena!
+    ])
+    
+    # 5. ADD JOIN CHANNEL BUTTON (Always at the bottom)
     btn.append([InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)])
+
 
     msg = await client.send_cached_media(
         chat_id=message.from_user.id,
