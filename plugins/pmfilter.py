@@ -2239,4 +2239,84 @@ async def advantage_spell_chok(client, message):
         await message.delete()
     except:
         pass
+
+
+# ════════════════════════════════════════════
+# 🚨 FILE REPORTING SYSTEM
+# ════════════════════════════════════════════
+
+@Client.on_callback_query(filters.regex(r"^report#"))
+async def report_file_cb(client, query):
+    _, file_id = query.data.split("#")
+    
+    # Report Options
+    btn = [
+        [InlineKeyboardButton("🇺🇸 Not in English", callback_data=f"repreason#not_eng#{file_id}")],
+        [InlineKeyboardButton("⚠️ Fake Book / Corrupted", callback_data=f"repreason#fake#{file_id}")],
+        [InlineKeyboardButton("✍️ Type Another Reason", callback_data=f"repreason#other#{file_id}")],
+        [InlineKeyboardButton("🔙 Cancel", callback_data="close_data")]
+    ]
+    
+    await query.message.reply_text(
+        "🚨 **Report this file:**\nPlease select the exact reason why this file is bad:", 
+        reply_markup=InlineKeyboardMarkup(btn), 
+        quote=True
+    )
+    await query.answer()
+
+@Client.on_callback_query(filters.regex(r"^repreason#"))
+async def report_reason_cb(client, query):
+    _, reason, file_id = query.data.split("#")
+    user = query.from_user
+    
+    if reason == "not_eng":
+        reason_text = "Not in English"
+    elif reason == "fake":
+        reason_text = "Fake Book / Corrupted File"
+    elif reason == "other":
+        await query.message.edit_text(
+            "✍️ **Custom Report:**\n\n"
+            "Please **reply** directly to the bad file with this command:\n"
+            "`/report [Your Reason]`\n\n"
+            "*Example:* `/report pages are missing in chapter 3`"
+        )
+        return
         
+    # Send Log to Admin
+    from info import LOG_CHANNEL
+    log_msg = (
+        f"🚨 **FILE REPORTED** 🚨\n\n"
+        f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📄 **File ID:** `{file_id}`\n"
+        f"⚠️ **Reason:** {reason_text}\n\n"
+        f"🔍 *Check this file and use /delete if it is actually fake.*"
+    )
+    await client.send_message(LOG_CHANNEL, log_msg)
+    
+    await query.message.edit_text("✅ **Thank you!** Your report has been sent to the admins. We will review and delete this file if necessary.")
+
+# Custom typed reason command
+@Client.on_message(filters.command("report") & filters.private)
+async def custom_report_cmd(client, message):
+    if not message.reply_to_message or not message.reply_to_message.document:
+        return await message.reply_text("⚠️ Please **reply** directly to the file/book you want to report with `/report [reason]`.")
+    
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ Please type a reason.\n*Example:* `/report fake pages`")
+        
+    reason_text = message.text.split(" ", 1)[1]
+    file_id = message.reply_to_message.document.file_id
+    user = message.from_user
+    
+    from info import LOG_CHANNEL
+    log_msg = (
+        f"🚨 **FILE REPORTED (CUSTOM REASON)** 🚨\n\n"
+        f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📄 **File ID:** `{file_id}`\n"
+        f"⚠️ **Reason:** {reason_text}\n\n"
+        f"🔍 *Check this file and use /delete if it is actually fake.*"
+    )
+    
+    await client.send_message(LOG_CHANNEL, log_msg)
+    await message.reply_text("✅ **Thank you!** Your custom report has been sent to the admins.")
+
