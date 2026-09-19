@@ -433,6 +433,13 @@ class Database:
         top_users = await cursor.to_list(length=10)
         return top_users
 
+    async def update_verify_status(self, user_id):
+        # User ka verification time save karne ke liye (16-Hour Pass)
+        ist_timezone = pytz.timezone('Asia/Kolkata')
+        current_time = datetime.datetime.now(tz=ist_timezone)
+        await self.update_notcopy_user(user_id, {"last_verified": current_time})
+
 db = Database(DATABASE_URI, DATABASE_NAME)    
 db2 = Database(DATABASE_URI2, DATABASE_NAME)
+
 
