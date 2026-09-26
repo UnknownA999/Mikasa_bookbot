@@ -1897,20 +1897,41 @@ async def auto_filter(client, msg, spoll=False):
                 except Exception as e:
                     logger.exception("reply_sticker failed: %s", e)
 
-                find = search.split(" ")
-                search = ""
-                removes = ["upload", "series", "full", "print", "file"]
-                for x in find:
-                    if x in removes:
-                        continue
-                    else:
-                        search = search + x + " "
+                # 1. SMART PUNCTUATION & SYMBOL CLEANER
+                search = search.replace("'", "").replace("’", "").replace("`", "")
+                search = re.sub(r"[-:.,!_?()/\\|&\"~]", " ", search)
+
+                # 2. REMOVE EXTRA FILLER WORDS (Books, Movies & Anime)
+                removes = [
+                    "upload", "series", "full", "print", "file", "book", "books", 
+                    "novel", "pdf", "epub", "mobi", "cbz", "manga", "anime", 
+                    "download", "free", "hd", "audio", "chapter", "episode"
+                ]
+                find = search.split()
+                cleaned_words = [x for x in find if x not in removes]
+                search = " ".join(cleaned_words)
+
                 search = re.sub(r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|bro|bruh|broh|helo|that|find|dubbed|link|venum|iruka|pannunga|pannungga|anuppunga|anupunga|anuppungga|anupungga|film|undo|kitti|kitty|tharu|kittumo|kittum|movie|any(one)|with\ssubtitle(s)?)", "", search, flags=re.IGNORECASE)
                 search = re.sub(r"\s+", " ", search).strip()
-                search = search.replace("-", " ")
 
-
+                # STAGE 1: Standard Cleaned Search
                 files, offset, total_results = await get_search_results(message.chat.id, search, offset=0, filter=True)
+
+                # STAGE 2: Fallback if user only typed filler words (e.g., "Book")
+                if not files and not search:
+                    search = re.sub(r"\s+", " ", message_text.lower()).strip()
+                    files, offset, total_results = await get_search_results(message.chat.id, search, offset=0, filter=True)
+
+                # STAGE 3: Smart Keyword Fallback (If user typed extra author/year words not in filename)
+                if not files and len(search.split()) > 2:
+                    words = search.split()
+                    # Pehle 2 ya 3 main words (Core Title) se wapas try karega
+                    for cut in range(len(words) - 1, 1, -1):
+                        sub_search = " ".join(words[:cut])
+                        files, offset, total_results = await get_search_results(message.chat.id, sub_search, offset=0, filter=True)
+                        if files:
+                            search = sub_search
+                            break
 
                 settings = await get_settings(message.chat.id)
                 if not files:
