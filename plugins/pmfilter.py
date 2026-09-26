@@ -68,32 +68,35 @@ async def fetch_database_options(chat_id, search_query):
 
     
 
-@Client.on_message(filters.group & filters.text & filters.incoming)
+# 1. GROUP SEARCH: Sirf /search command par kaam karega (Kisi bhi group mein!)
+@Client.on_message(filters.group & filters.command(["search", "s"]) & filters.incoming)
 async def give_filter(client, message):
-    # ADD THIS CHECK HERE
     if message.chat.id == -1003752741465 and message.message_thread_id == 2530:
         return 
 
-    # The rest of your code remains exactly the same...
+    # Agar user ne sirf /search likha aur aage naam nahi likha
+    if len(message.command) < 2:
+        k = await message.reply_text("<b>⚠️ Please type a name after /search!\n\n📌 Example:</b> <code>/search Jujutsu Kaisen</code>\n<code>/search Atomic Habits</code>")
+        await asyncio.sleep(15)
+        return await k.delete()
+
+    # Command hata kar sirf search query nikalna
+    query_text = message.text.split(" ", 1)[1].strip()
+    message.text = query_text 
+
     if EMOJI_MODE:
         try:
             await message.react(emoji=random.choice(REACTIONS), big=True)
         except Exception:
-            await message.react(emoji="⚡️", big=True)
-    await mdb.update_top_messages(message.from_user.id, message.text)
-    if message.chat.id != SUPPORT_CHAT_ID:
-        settings = await get_settings(message.chat.id)
-        try:
-            if settings['auto_ffilter']:
-                if re.search(r'https?://\S+|www\.\S+|t\.me/\S+', message.text):
-                    if await is_check_admin(client, message.chat.id, message.from_user.id):
-                        return
-                    return await message.delete()
-                await auto_filter(client, message)
-        except KeyError:
             pass
+
+    await mdb.update_top_messages(message.from_user.id, query_text)
+    
+    # Har group (personal ya public) mein search allow karega سوائے support group ke
+    if message.chat.id != SUPPORT_CHAT_ID:
+        await auto_filter(client, message)
     else:
-        search = message.text
+        search = query_text
         _, _, total_results = await get_search_results(chat_id=message.chat.id, query=search.lower(), offset=0, filter=True)
         if total_results == 0:
             return
@@ -102,26 +105,39 @@ async def give_filter(client, message):
             f"ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴀᴠᴀɪʟᴀʙʟᴇ ✅\n\n"
             f"📂 ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ : {str(total_results)}\n"
             f"🔍 ꜱᴇᴀʀᴄʜ :</b> <code>{search}</code>\n\n"
-            f"<b>‼️ ᴛʜɪs ɪs ᴀ <u>sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ</u> sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...\n\n"
-            f"📝 ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ : 👇</b>",
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴀɴᴅ ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ 🔎", url=GRP_LNK)]])
+            f"<b>‼️ ᴛʜɪs ɪs ᴀ <u>sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ</u> sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴀɴᴅ ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ 🔎", url=GRP_LNK)]])
         )
 
 
-@Client.on_message(filters.private & filters.text & filters.incoming & ~filters.regex(r"^/"))
+# 2. PRIVATE (DM) SEARCH: Direct text AUR /search dono par kaam karega!
+@Client.on_message(filters.private & filters.text & filters.incoming)
 async def pm_text(bot, message):
     bot_id = bot.me.id
     content = message.text
     user = message.from_user.first_name
     user_id = message.from_user.id
+
+    # Agar DM mein /search likha hai, toh usko allow karo, baaki commands (/start, /plan etc.) ko chhod do
+    if content.startswith("/"):
+        if content.lower().startswith(("/search", "/s ")):
+            parts = content.split(" ", 1)
+            if len(parts) < 2:
+                return await message.reply_text("<b>⚠️ Example:</b> <code>/search Rich Dad Poor Dad</code>")
+            content = parts[1].strip()
+            message.text = content
+        else:
+            return # Baaki commands commands.py sambhal lega
+
+    if content.startswith("#"):
+        return
+
     if EMOJI_MODE:
         try:
             await message.react(emoji=random.choice(REACTIONS), big=True)
         except Exception:
-            await message.react(emoji="⚡️", big=True)
-    if content.startswith(("#")):
-        return
+            pass
+
     try:
         await mdb.update_top_messages(user_id, content)
         pm_search = await db.pm_search_status(bot_id)
@@ -131,20 +147,10 @@ async def pm_text(bot, message):
             await message.reply_text(
                 text=(
                     f"<b>👋 ʜᴇʏ {user},\n\n"
-                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔 𝒂𝒏𝒅 𝒓𝒆𝒔𝒆𝒂𝒓𝒄𝒉 𝒑𝒂𝒑𝒆𝒓𝒔 𝒐𝒏𝒍𝒚 𝒊𝒏 𝒐𝒖𝒓 𝑳𝒊𝒃𝒓𝒂𝒓𝒚 𝑮𝒓𝒐𝒖𝒑. 𝑷𝒍𝒆𝒂𝒔𝒆 𝒋𝒐𝒊𝒏 𝒐𝒖𝒓 𝒈𝒓𝒐𝒖𝒑 𝒃𝒚 𝒄𝒍𝒊𝒄𝒌𝒊𝒏𝒈 𝒕𝒉𝒆 𝒃𝒖𝒕𝒕𝒐𝒏 𝒃𝒆𝒍𝒐𝒘 𝒕𝒐 𝒂𝒄𝒄𝒆𝒔𝒔 𝒖𝒏𝒍𝒊𝒎𝒊𝒕𝒆𝒅 𝒇𝒓𝒆𝒆 𝒌𝒏𝒐𝒘𝒍𝒆𝒅𝒈𝒆! 👇\n\n"
-                    "<blockquote>"
-                    "💡 We support open education. Search for any novel, academic book, or research paper in our main group."
-                    "</blockquote></b>"
-
-                ), reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ʀᴇǫᴜᴇsᴛ ʜᴇʀᴇ ", url=GRP_LNK)]]))
-            await bot.send_message(chat_id=LOG_CHANNEL,
-                                   text=(
-                                       f"<b>#𝐏𝐌_𝐌𝐒𝐆\n\n"
-                                       f"👤 Nᴀᴍᴇ : {user}\n"
-                                       f"🆔 ID : {user_id}\n"
-                                       f"💬 Mᴇssᴀɢᴇ : {content}</b>"
-                                   )
-                                   )
+                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔, 𝒎𝒐𝒗𝒊𝒆𝒔 & 𝒂𝒏𝒊𝒎𝒆 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>"
+                ),
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ᴊᴏɪɴ ɢʀᴏᴜᴘ ", url=GRP_LNK)]])
+            )
     except Exception:
         pass
 
