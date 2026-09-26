@@ -459,7 +459,7 @@ async def start(client, message):
                 # --------------------------------------
 
                 msg = await client.send_cached_media(
-                    chat_id=messuage.from_user.id,
+                    chat_id=message.from_user.id,
 
                     file_id=file_id,
                     caption=f_caption,
@@ -681,7 +681,7 @@ async def start(client, message):
     promo_btn = InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ➕", url=add_group_url)],
         [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ & ꜱᴜᴘᴘᴏʀᴛ ᴜꜱ ❤️", url=share_url)],
-        [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📢", url=UPDATE_CHNL_LNK)]
+        [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📢", url=UPDATE_CHNL_LNK)],
         [InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴍᴀɪɴ ɢʀᴏᴜᴘ 🔎", url=GRP_LNK)]        
     ])
     await client.send_message(
