@@ -130,6 +130,72 @@ async def pm_text(bot, message):
             return # Baaki commands commands.py sambhal lega
 
     if content.startswith("#"):
+from pyrogram import StopPropagation
+
+# 1. GROUP SEARCH: group=-1 lagaya hai taaki misc.py ka "Searching ImDB" na chale!
+@Client.on_message(filters.group & filters.command(["search", "s"]) & filters.incoming, group=-1)
+async def give_filter(client, message):
+    if message.chat.id == -1003752741465 and message.message_thread_id == 2530:
+        return 
+
+    if len(message.command) < 2:
+        k = await message.reply_text("<b>⚠️ /search ke aage naam bhi likho!\n\n📌 Example:</b> <code>/search Atomic Habits</code>\n<code>/search Dont Be Shy</code>")
+        await asyncio.sleep(15)
+        await k.delete()
+        raise StopPropagation
+
+    query_text = message.text.split(" ", 1)[1].strip()
+    message.text = query_text 
+
+    if EMOJI_MODE:
+        try:
+            await message.react(emoji=random.choice(REACTIONS), big=True)
+        except Exception:
+            pass
+
+    await mdb.update_top_messages(message.from_user.id, query_text)
+    
+    if message.chat.id != SUPPORT_CHAT_ID:
+        await auto_filter(client, message)
+    else:
+        search = query_text
+        _, _, total_results = await get_search_results(chat_id=message.chat.id, query=search.lower(), offset=0, filter=True)
+        if total_results > 0:
+            await message.reply_text(
+                f"<b>Hᴇʏ {message.from_user.mention},\n\n"
+                f"ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴀᴠᴀɪʟᴀʙʟᴇ ✅\n\n"
+                f"📂 ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ : {str(total_results)}\n"
+                f"🔍 ꜱᴇᴀʀᴄʜ :</b> <code>{search}</code>\n\n"
+                f"<b>‼️ ᴛʜɪs ɪs ᴀ <u>sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ</u> sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...</b>",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴀɴᴅ ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ 🔎", url=GRP_LNK)]])
+            )
+    
+    # Yeh line misc.py ke "Searching ImDB" ko chalne se rok degi!
+    raise StopPropagation
+
+
+# 2. PRIVATE (DM) SEARCH: Direct naam AUR /search dono chalenge!
+@Client.on_message(filters.private & filters.text & filters.incoming, group=-1)
+async def pm_text(bot, message):
+    bot_id = bot.me.id
+    content = message.text
+    user = message.from_user.first_name
+    user_id = message.from_user.id
+
+    is_search_cmd = False
+    if content.startswith("/"):
+        if content.lower().startswith(("/search", "/s")):
+            parts = content.split(" ", 1)
+            if len(parts) < 2:
+                await message.reply_text("<b>⚠️ Example:</b> <code>/search Atomic Habits</code>")
+                raise StopPropagation
+            content = parts[1].strip()
+            message.text = content
+            is_search_cmd = True
+        else:
+            return # Baaki commands (/start, /requests) ko jaane dega
+
+    if content.startswith("#"):
         return
 
     if EMOJI_MODE:
@@ -145,14 +211,15 @@ async def pm_text(bot, message):
             await auto_filter(bot, message)
         else:
             await message.reply_text(
-                text=(
-                    f"<b>👋 ʜᴇʏ {user},\n\n"
-                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔, 𝒎𝒐𝒗𝒊𝒆𝒔 & 𝒂𝒏𝒊𝒎𝒆 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>"
-                ),
+                text=f"<b>👋 ʜᴇʏ {user},\n\n📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ᴊᴏɪɴ ɢʀᴏᴜᴘ ", url=GRP_LNK)]])
             )
     except Exception:
         pass
+
+    if is_search_cmd:
+        raise StopPropagation
+
 
 @Client.on_message(filters.command("clean_duplicates") & filters.user(ADMINS))
 async def clean_duplicates(client, message):
