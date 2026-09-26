@@ -1596,41 +1596,46 @@ async def smart_clean_duplicates(bot, message):
 
 
 # ════════════════════════════════════════════
-# 🚀 AUTO INDEXER FOR DATABASE CHANNEL
+# 🚀 AUTO INDEXER FOR BOOK & MEDIA CHANNELS
 # ════════════════════════════════════════════
 
-DATABASE_CHANNEL_ID = -1003793921200 
+# Tumhara Book DB (-1003793921200) aur Media DB (-1003782307099) dono set hain
+ALL_DB_CHANNELS = list(set([-1003793921200, -1003782307099] + CHANNELS))
 
-# Dummy class banayi hai taaki tumhare database ko saari info perfectly mile
 class MockMedia:
-    def __init__(self, document, message):
-        self.file_id = document.file_id
-        self.file_name = getattr(document, 'file_name', 'Unknown')
-        self.file_size = getattr(document, 'file_size', 0)
-        self.file_type = "document"
-        self.mime_type = getattr(document, 'mime_type', 'application/pdf')
+    def __init__(self, media, message, file_type):
+        self.file_id = media.file_id
+        # Agar video file mein file_name na ho, toh caption se naam utha lega
+        self.file_name = getattr(media, 'file_name', None) or (message.caption[:50] if message.caption else 'Unknown_File')
+        self.file_size = getattr(media, 'file_size', 0)
+        self.file_type = file_type
+        self.mime_type = getattr(media, 'mime_type', 'video/mp4' if file_type == 'video' else 'application/pdf')
         self.caption = message.caption
 
-# group=1 lagaya hai taaki koi aur message handler isko na roke!
-@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & filters.document, group=1)
+# group=1 ke sath ab Document (PDF/EPUB/MKV), Video (MP4) aur Audio sab auto-index honge!
+@Client.on_message(filters.channel & filters.chat(ALL_DB_CHANNELS) & (filters.document | filters.video | filters.audio), group=1)
 async def auto_index_new_files(client, message):
     try:
         from database.ia_filterdb import save_file
         
-        if not message.document:
+        media = message.document or message.video or message.audio
+        if not media:
             return
             
+        file_type = "document" if message.document else ("video" if message.video else "audio")
+        
         # File aur Message dono ko combine karke database mein bhej rahe hain
-        media_obj = MockMedia(message.document, message)
+        media_obj = MockMedia(media, message, file_type)
         saved, status = await save_file(media_obj)
         
         if saved:
-            print(f"✅ [AUTO-INDEX SUCCESS] Indexed: {media_obj.file_name}")
+            print(f"✅ [AUTO-INDEX SUCCESS] Indexed ({file_type}): {media_obj.file_name}")
         else:
             print(f"⚠️ [AUTO-INDEX SKIP] File already exists or ignored: {media_obj.file_name}")
             
     except Exception as e:
         print(f"❌ [AUTO-INDEX ERROR]: {e}")
+
 
 
 # ════════════════════════════════════════════
