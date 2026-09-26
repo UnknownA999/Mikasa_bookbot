@@ -674,11 +674,15 @@ async def start(client, message):
         quote=True, parse_mode=enums.ParseMode.HTML
     )
     
-    # 🌟 NEW PROFESSIONAL PROMO MESSAGE WITH SHARE BUTTON
+    # 🌟 PROMO MESSAGE WITH 'ADD TO GROUP' & 'SHARE' BUTTONS
     share_url = f"https://t.me/share/url?url=https://t.me/{temp.U_NAME}&text=Check%20out%20this%20amazing%20bot%20for%20free%20Movies,%20Anime,%20K-Dramas,%20C-Dramas%20and%20Books!%20%F0%9F%94%A5"
+    add_group_url = f"https://t.me/{temp.U_NAME}?startgroup=true"
+    
     promo_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ➕", url=add_group_url)],
         [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ & ꜱᴜᴘᴘᴏʀᴛ ᴜꜱ ❤️", url=share_url)],
-        [InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴍᴀɪɴ ɢʀᴏᴜᴘ 🔎", url=GRP_LNK)]
+        [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📢", url=UPDATE_CHNL_LNK)]
+        [InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴍᴀɪɴ ɢʀᴏᴜᴘ 🔎", url=GRP_LNK)]        
     ])
     await client.send_message(
         chat_id=message.from_user.id,
@@ -686,6 +690,7 @@ async def start(client, message):
         reply_markup=promo_btn,
         parse_mode=enums.ParseMode.HTML
     )
+
 
     await asyncio.sleep(DELETE_TIME)
     await msg.delete()
