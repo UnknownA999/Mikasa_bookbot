@@ -459,7 +459,7 @@ async def start(client, message):
                 # --------------------------------------
 
                 msg = await client.send_cached_media(
-                    chat_id=message.from_user.id,
+                    chat_id=messuage.from_user.id,
 
                     file_id=file_id,
                     caption=f_caption,
@@ -467,7 +467,21 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
                 filesarr.append(msg)
+```python
             k = await client.send_message(chat_id=message.from_user.id, text=script.DEL_MSG.format(get_time(DELETE_TIME)), parse_mode=enums.ParseMode.HTML)
+            
+            share_url = f"https://t.me/share/url?url=https://t.me/{temp.U_NAME}&text=Check%20out%20this%20amazing%20bot%20for%20free%20Movies,%20Anime,%20K-Dramas,%20C-Dramas%20and%20Books!%20%F0%9F%94%A5"
+            promo_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ & ꜱᴜᴘᴘᴏʀᴛ ᴜꜱ ❤️", url=share_url)],
+                [InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴍᴀɪɴ ɢʀᴏᴜᴘ 🔎", url=GRP_LNK)]
+            ])
+            await client.send_message(
+                chat_id=message.from_user.id,
+                text=script.PROMO_MSG,
+                reply_markup=promo_btn,
+                parse_mode=enums.ParseMode.HTML
+            )
+            
             await asyncio.sleep(DELETE_TIME)
             for x in filesarr:
                 await x.delete()
@@ -654,9 +668,24 @@ async def start(client, message):
         protect_content=settings.get('file_secure', PROTECT_CONTENT),
         reply_markup=InlineKeyboardMarkup(btn)
     )
+```python
     k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
         quote=True, parse_mode=enums.ParseMode.HTML
-    )     
+    )
+    
+    # 🌟 NEW PROFESSIONAL PROMO MESSAGE WITH SHARE BUTTON
+    share_url = f"https://t.me/share/url?url=https://t.me/{temp.U_NAME}&text=Check%20out%20this%20amazing%20bot%20for%20free%20Movies,%20Anime,%20K-Dramas,%20C-Dramas%20and%20Books!%20%F0%9F%94%A5"
+    promo_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ & ꜱᴜᴘᴘᴏʀᴛ ᴜꜱ ❤️", url=share_url)],
+        [InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴍᴀɪɴ ɢʀᴏᴜᴘ 🔎", url=GRP_LNK)]
+    ])
+    await client.send_message(
+        chat_id=message.from_user.id,
+        text=script.PROMO_MSG,
+        reply_markup=promo_btn,
+        parse_mode=enums.ParseMode.HTML
+    )
+
     await asyncio.sleep(DELETE_TIME)
     await msg.delete()
     await k.edit_text("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
