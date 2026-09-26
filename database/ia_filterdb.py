@@ -116,10 +116,14 @@ async def save_file(media):
     if not file_id or file_id is None or file_id == "None":
         logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
         return False, 2 
-
+        
+```python
+    # Pehle apostrophe ko bina space ke hatayenge taaki "Don't" -> "Dont" bane ("Don t" nahi)
+    clean_name = re.sub(r"['’`]", "", str(media.file_name))
     file_name = re.sub(
-        r"[_\-\.#+$%^&*()!~`,;:\"'?/<>\[\]{}=|\\]", " ", str(media.file_name)
+        r"[_\-\.#+$%^&*()!~,;:\"?/<>\[\]{}=|\\]", " ", clean_name
     )
+    file_name = re.sub(r"\s+", " ", file_name).strip()
 
     # --- MEMORY OPTIMIZATION: Check Local Cache First ---
     cache_key = f"{file_name}_{media.file_size}"
@@ -210,18 +214,44 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
                 settings = await get_settings(int(chat_id))
                 max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
 
-    if isinstance(query, list):
-        raw_patterns = []
-        for q in query:
-            q = q.strip()
-            if q:
-                if ' ' in q:
-                    words = [re.escape(word) for word in q.split()]
-                    pattern = "^" + "".join([f"(?=.*{w})" for w in words])
-                    raw_patterns.append(pattern)
-                else:
-                    raw_patterns.append(re.escape(q))
+```python
+    def build_smart_pattern(q_str):
+        # Clean apostrophes and special symbols from search query
+        q_str = re.sub(r"['’`]", "", q_str)
+        q_str = re.sub(r"[_\-\.#+$%^&*()!~,;:\"?/<>\[\]{}=|\\]", " ", q_str).strip()
+        if not q_str:
+            return ""
         
+        words = q_str.split()
+        lookaheads = []
+        for word in words:
+            # 1. Smart Season/Volume/Episode Matcher (s1 == s01 == season 1 == vol 1)
+            s_match = re.match(r"^(?:s|season|vol|volume)0*(\d+)$", word, re.IGNORECASE)
+            e_match = re.match(r"^(?:e|ep|episode)0*(\d+)$", word, re.IGNORECASE)
+            
+            if s_match:
+                num = s_match.group(1)
+                w_pat = rf"\b(?:s|season|vol|volume)\s*0*{num}\b"
+            elif e_match:
+                num = e_match.group(1)
+                w_pat = rf"\b(?:e|ep|episode)\s*0*{num}\b"
+            # 2. Smart Apostrophe Fix for already-indexed files ("dont" matches both "dont" and "don t")
+            elif word.lower().endswith("nt") and len(word) > 2:
+                base = re.escape(word[:-1])
+                w_pat = rf"{base}\s*t"
+            elif word.lower().endswith("s") and len(word) > 3:
+                base = re.escape(word[:-1])
+                w_pat = rf"{base}\s*s?"
+            else:
+                w_pat = re.escape(word)
+                
+            lookaheads.append(f"(?=.*{w_pat})")
+            
+        return "^" + "".join(lookaheads)
+
+    if isinstance(query, list):
+        raw_patterns = [build_smart_pattern(q) for q in query if q.strip()]
+        raw_patterns = [p for p in raw_patterns if p]
         raw_pattern = '|'.join(raw_patterns)
         regex_list = [re.compile(raw_pattern, re.IGNORECASE)] if raw_pattern else []
         
@@ -230,15 +260,9 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
         else:
             filter_mongo = {"$or": [{"file_name": r} for r in regex_list]}
     else:
-        query = query.strip()
-        if not query:
+        raw_pattern = build_smart_pattern(query)
+        if not raw_pattern:
             return [], None, 0
-            
-        if ' ' in query:
-            words = [re.escape(word) for word in query.split()]
-            raw_pattern = "^" + "".join([f"(?=.*{w})" for w in words])
-        else:
-            raw_pattern = re.escape(query)
 
         try:
             regex = re.compile(raw_pattern, flags=re.IGNORECASE)
