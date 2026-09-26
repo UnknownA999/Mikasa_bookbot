@@ -117,7 +117,6 @@ async def save_file(media):
         logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
         return False, 2 
         
-```python
     # Pehle apostrophe ko bina space ke hatayenge taaki "Don't" -> "Dont" bane ("Don t" nahi)
     clean_name = re.sub(r"['’`]", "", str(media.file_name))
     file_name = re.sub(
@@ -214,7 +213,7 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
                 settings = await get_settings(int(chat_id))
                 max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
 
-```python
+    
     def build_smart_pattern(q_str):
         # Clean apostrophes and special symbols from search query
         q_str = re.sub(r"['’`]", "", q_str)
