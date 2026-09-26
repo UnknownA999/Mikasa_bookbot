@@ -8,7 +8,7 @@ from database.ia_filterdb import Media, Media2, get_file_details, get_search_res
 from database.config_db import mdb
 from pymongo import DeleteOne
 from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid, ChatAdminRequired, UserNotParticipant
-from pyrogram import Client, filters, enums, StopPropagation
+from pyrogram import Client, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto, WebAppInfo
 from info import *
 from Script import script
@@ -19,7 +19,6 @@ import asyncio
 import re
 import math
 import random
-import string
 import pytz
 from datetime import datetime, timedelta
 lock = asyncio.Lock()
@@ -38,7 +37,6 @@ BUTTONS0 = {}
 BUTTONS1 = {}
 BUTTONS2 = {}
 SPELL_CHECK = {}
-
 async def fetch_database_options(chat_id, search_query):
     files, _, _ = await get_search_results(chat_id, search_query, max_results=200, filter=True)
     available = {
@@ -68,19 +66,21 @@ async def fetch_database_options(chat_id, search_query):
             
     return available
 
+    
 
-# 1. GROUP SEARCH: group=-1 lagaya hai taaki misc.py ka "Searching ImDB" na chale!
-@Client.on_message(filters.group & filters.command(["search", "s"]) & filters.incoming, group=-1)
+# 1. GROUP SEARCH: Sirf /search command par kaam karega (Kisi bhi group mein!)
+@Client.on_message(filters.group & filters.command(["search", "s"]) & filters.incoming)
 async def give_filter(client, message):
     if message.chat.id == -1003752741465 and message.message_thread_id == 2530:
         return 
 
+    # Agar user ne sirf /search likha aur aage naam nahi likha
     if len(message.command) < 2:
-        k = await message.reply_text("<b>⚠️ /search ke aage naam bhi likho!\n\n📌 Example:</b> <code>/search Atomic Habits</code>\n<code>/search Dont Be Shy</code>")
+        k = await message.reply_text("<b>⚠️ Please type a name after /search!\n\n📌 Example:</b> <code>/search Jujutsu Kaisen</code>\n<code>/search Atomic Habits</code>")
         await asyncio.sleep(15)
-        await k.delete()
-        raise StopPropagation
+        return await k.delete()
 
+    # Command hata kar sirf search query nikalna
     query_text = message.text.split(" ", 1)[1].strip()
     message.text = query_text 
 
@@ -92,44 +92,42 @@ async def give_filter(client, message):
 
     await mdb.update_top_messages(message.from_user.id, query_text)
     
+    # Har group (personal ya public) mein search allow karega سوائے support group ke
     if message.chat.id != SUPPORT_CHAT_ID:
         await auto_filter(client, message)
     else:
         search = query_text
         _, _, total_results = await get_search_results(chat_id=message.chat.id, query=search.lower(), offset=0, filter=True)
-        if total_results > 0:
-            await message.reply_text(
-                f"<b>Hᴇʏ {message.from_user.mention},\n\n"
-                f"ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴀᴠᴀɪʟᴀʙʟᴇ ✅\n\n"
-                f"📂 ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ : {str(total_results)}\n"
-                f"🔍 ꜱᴇᴀʀᴄʜ :</b> <code>{search}</code>\n\n"
-                f"<b>‼️ ᴛʜɪs ɪs ᴀ <u>sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ</u> sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...</b>",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴀɴᴅ ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ 🔎", url=GRP_LNK)]])
-            )
-    
-    raise StopPropagation
+        if total_results == 0:
+            return
+        await message.reply_text(
+            f"<b>Hᴇʏ {message.from_user.mention},\n\n"
+            f"ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ ɪꜱ ᴀʟʀᴇᴀᴅʏ ᴀᴠᴀɪʟᴀʙʟᴇ ✅\n\n"
+            f"📂 ꜰɪʟᴇꜱ ꜰᴏᴜɴᴅ : {str(total_results)}\n"
+            f"🔍 ꜱᴇᴀʀᴄʜ :</b> <code>{search}</code>\n\n"
+            f"<b>‼️ ᴛʜɪs ɪs ᴀ <u>sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ</u> sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 ᴊᴏɪɴ ᴀɴᴅ ꜱᴇᴀʀᴄʜ ʜᴇʀᴇ 🔎", url=GRP_LNK)]])
+        )
 
 
-# 2. PRIVATE (DM) SEARCH: Direct naam AUR /search dono chalenge!
-@Client.on_message(filters.private & filters.text & filters.incoming, group=-1)
+# 2. PRIVATE (DM) SEARCH: Direct text AUR /search dono par kaam karega!
+@Client.on_message(filters.private & filters.text & filters.incoming)
 async def pm_text(bot, message):
     bot_id = bot.me.id
     content = message.text
     user = message.from_user.first_name
     user_id = message.from_user.id
 
-    is_search_cmd = False
+    # Agar DM mein /search likha hai, toh usko allow karo, baaki commands (/start, /plan etc.) ko chhod do
     if content.startswith("/"):
-        if content.lower().startswith(("/search", "/s")):
+        if content.lower().startswith(("/search", "/s ")):
             parts = content.split(" ", 1)
             if len(parts) < 2:
-                await message.reply_text("<b>⚠️ Example:</b> <code>/search Atomic Habits</code>")
-                raise StopPropagation
+                return await message.reply_text("<b>⚠️ Example:</b> <code>/search Rich Dad Poor Dad</code>")
             content = parts[1].strip()
             message.text = content
-            is_search_cmd = True
         else:
-            return
+            return # Baaki commands commands.py sambhal lega
 
     if content.startswith("#"):
         return
@@ -147,16 +145,14 @@ async def pm_text(bot, message):
             await auto_filter(bot, message)
         else:
             await message.reply_text(
-                text=f"<b>👋 ʜᴇʏ {user},\n\n📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>",
+                text=(
+                    f"<b>👋 ʜᴇʏ {user},\n\n"
+                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔, 𝒎𝒐𝒗𝒊𝒆𝒔 & 𝒂𝒏𝒊𝒎𝒆 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>"
+                ),
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ᴊᴏɪɴ ɢʀᴏᴜᴘ ", url=GRP_LNK)]])
             )
     except Exception:
         pass
-
-    if is_search_cmd:
-        raise StopPropagation
-
-
 
 @Client.on_message(filters.command("clean_duplicates") & filters.user(ADMINS))
 async def clean_duplicates(client, message):
@@ -2270,4 +2266,3 @@ async def advantage_spell_chok(client, message):
         await message.delete()
     except:
         pass
-
