@@ -28,3 +28,28 @@ async def create_batch(client, message):
         )
     except Exception as e:
         await message.reply(f"❌ **Error:** {e}\n\nMake sure you are using valid channel links.")
+
+
+
+import re
+from pyrogram import Client, filters
+from info import ADMINS, WEB_HUB
+
+# Auto-Converter for Old Links (Only for Admins)
+@Client.on_message(filters.private & filters.regex(r"https?://(?:t\.me|telegram\.me)/([a-zA-Z0-9_]+)\?start=([a-zA-Z0-9_-]+)") & filters.user(ADMINS))
+async def update_old_link(client, message):
+    # Link se bot ka naam aur start parameter (jaise batch_3611_3611) nikalna
+    match = message.matches[0]
+    bot_username = match.group(1)
+    start_param = match.group(2)
+    
+    # Naya Web Hub link generate karna
+    new_link = f"{WEB_HUB}?start={start_param}&bot={bot_username}"
+    
+    await message.reply_text(
+        f"✅ **Updated Monetized Link:**\n\n"
+        f"🔗 `{new_link}`\n\n"
+        f"*(Copy and paste this in your channels!)*",
+        disable_web_page_preview=True
+    )
+
