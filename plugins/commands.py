@@ -363,6 +363,12 @@ async def start(client, message):
                 # ---------------------------------------------
                 
                 f_caption = files1.caption
+                # --- CAPTION CLEANER & REPLACER ---
+                if f_caption:
+                    f_caption = re.sub(r'@[a-zA-Z0-9_]+', '', f_caption) # Removes all @usernames
+                    f_caption = re.sub(r'https?://(?:t\.me|telegram\.me)/[a-zA-Z0-9_]+', '', f_caption) # Removes t.me links
+                    f_caption = f_caption.strip() + "\n\n📢 ᴊᴏɪɴ @mikasa_network | 🤖 ʙᴏᴛ @GoogleBookxSearchBot"
+                # ----------------------------------
                 settings = await get_settings(int(grp_id))
                 # Force fallback to our new beautiful script.CAPTION
                 DREAMX_CAPTION = settings.get('caption', script.CAPTION)
@@ -553,6 +559,12 @@ async def start(client, message):
     title = clean_filename(files.file_name)
     size = get_size(files.file_size)
     f_caption = files.caption
+    # --- CAPTION CLEANER & REPLACER ---
+    if f_caption:
+        f_caption = re.sub(r'@[a-zA-Z0-9_]+', '', f_caption) # Removes all @usernames
+        f_caption = re.sub(r'https?://(?:t\.me|telegram\.me)/[a-zA-Z0-9_]+', '', f_caption) # Removes t.me links
+        f_caption = f_caption.strip() + "\n\n📢 ᴊᴏɪɴ @mikasa_network | 🤖 ʙᴏᴛ @GoogleBookxSearchBot"
+    # ----------------------------------
     
     # --- FETCH QUALITY & SEASON FOR SINGLE FILE ---
     quality = getattr(files, 'quality', 'Standard')
