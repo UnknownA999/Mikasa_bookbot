@@ -128,7 +128,7 @@ THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))
 # Channel & Group Links Configuration
 # ============================
 GRP_LNK = environ.get('GRP_LNK', 'https://t.me/Mikasaadsbot') # Group link for the bot
-WEB_HUB = environ.get('WEB_HUB', 'https://adamkhorjaanwar.online/')
+WEB_HUB = environ.get('WEB_HUB', 'https://unknowna999.github.io/Monetag-ad/')
 OWNER_LNK = environ.get('OWNER_LNK', 'https://t.me/Mikasa_devbot') # Owner link for the bot
 UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/scout_regimant') # Update channel link for the bot
 
