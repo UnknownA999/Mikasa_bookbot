@@ -631,7 +631,11 @@ async def start(client, message):
     ])
     btn.append([
         InlineKeyboardButton("📤 Upload Book", callback_data="upload_instructions"),
-        InlineKeyboardButton("❓ How to Upload", url="https://t.me/YOUR_VIDEO_TUTORIAL_LINK") # Yahan apna video link daal dena!
+        InlineKeyboardButton("❓ How to Upload", url="https://t.me/YOUR_VIDEO_TUTORIAL_LINK")
+    ])
+    # Premium / Remove Ads Button After File Delivery
+    btn.append([
+        InlineKeyboardButton("🚫 ʀᴇᴍᴏᴠᴇ ᴀᴅs (ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ)", url=f"https://t.me/{temp.U_NAME}?start=premium")
     ])
     
     # 5. ADD JOIN CHANNEL BUTTON (Always at the bottom)
@@ -656,6 +660,7 @@ async def start(client, message):
     add_group_url = f"https://t.me/{temp.U_NAME}?startgroup=true"
     
     promo_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚫 ʀᴇᴍᴏᴠᴇ ᴀᴅs (ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ)", url=f"https://t.me/{temp.U_NAME}?start=premium")],
         [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ➕", url=add_group_url)],
         [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ & ꜱᴜᴘᴘᴏʀᴛ ᴜꜱ ❤️", url=share_url)],
         [InlineKeyboardButton("📢 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📢", url=UPDATE_CHNL_LNK)],
