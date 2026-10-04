@@ -1,0 +1,508 @@
+import logging
+from struct import pack
+import re
+import base64
+from pyrogram.file_id import FileId
+from typing import Dict, List
+from collections import defaultdict, OrderedDict
+from pymongo.errors import DuplicateKeyError
+from umongo import Instance, Document, fields
+from motor.motor_asyncio import AsyncIOMotorClient
+from marshmallow import ValidationError
+from info import *
+from utils import get_settings, save_group_settings
+from datetime import datetime, timedelta
+import asyncio
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+# ---------------------------------------------------------
+
+# Global cache for DB size
+_db_stats_cache = {"timestamp": None, "primary_size": 0.0}
+
+# Primary DB
+client = AsyncIOMotorClient(DATABASE_URI)
+db = client[DATABASE_NAME]
+instance = Instance.from_db(db)
+
+# secondary db
+client2 = AsyncIOMotorClient(DATABASE_URI2)
+db2 = client2[DATABASE_NAME]
+instance2 = Instance.from_db(db2)
+
+# --- MEMORY FIX: LRU CACHE ---
+class LRUCache:
+    def __init__(self, capacity=2000):
+        self.cache = OrderedDict()
+        self.capacity = capacity
+
+    def contains(self, key):
+        if key in self.cache:
+            self.cache.move_to_end(key)
+            return True
+        return False
+
+    def add(self, key):
+        self.cache[key] = True
+        if len(self.cache) > self.capacity:
+            self.cache.popitem(last=False)
+
+# This will hold the fingerprints of files we've already seen
+duplicate_cache = LRUCache(capacity=2000) 
+# -----------------------------
+
+@instance.register
+class Media(Document):
+    file_id = fields.StrField(attribute="_id")
+    file_ref = fields.StrField(allow_none=True)
+    file_name = fields.StrField(required=True)
+    file_size = fields.IntField(required=True)
+    file_type = fields.StrField(allow_none=True)
+    mime_type = fields.StrField(allow_none=True)
+    caption = fields.StrField(allow_none=True)
+    quality = fields.StrField(allow_none=True) 
+    season = fields.StrField(allow_none=True)  
+
+    class Meta:
+        indexes = ("$file_name",)
+        collection_name = COLLECTION_NAME
+
+
+@instance2.register
+class Media2(Document):
+    file_id = fields.StrField(attribute="_id")
+    file_ref = fields.StrField(allow_none=True)
+    file_name = fields.StrField(required=True)
+    file_size = fields.IntField(required=True)
+    file_type = fields.StrField(allow_none=True)
+    mime_type = fields.StrField(allow_none=True)
+    caption = fields.StrField(allow_none=True)
+    quality = fields.StrField(allow_none=True) 
+    season = fields.StrField(allow_none=True)  
+
+    class Meta:
+        indexes = ("$file_name",)
+        collection_name = COLLECTION_NAME
+
+
+async def check_db_size(db):
+    try:
+        now = datetime.utcnow()
+        cache_stale_by_time = _db_stats_cache["timestamp"] is None or (
+            now - _db_stats_cache["timestamp"] > timedelta(minutes=10)
+        )
+        refresh_if_size_threshold = _db_stats_cache["primary_size"] >= 10.0
+        if not cache_stale_by_time and not refresh_if_size_threshold:
+            return _db_stats_cache["primary_size"]
+        stats = await db.command("dbstats")
+        db_logical_size = stats["dataSize"]
+        db_index_size = stats["indexSize"]
+        db_logical_size_mb = db_logical_size / (1024 * 1024)
+        db_index_size_mb = db_index_size / (1024 * 1024)
+        db_size_mb = db_logical_size_mb + db_index_size_mb
+        _db_stats_cache["primary_size"] = db_size_mb
+        _db_stats_cache["timestamp"] = now
+        return db_size_mb
+    except Exception as e:
+        print(f"Error Checking Database Size: {e}")
+        return 0
+
+
+async def save_file(media):
+    """Save file in database, with in-memory caching for memory efficiency."""
+    file_id, file_ref = unpack_new_file_id(media.file_id)
+    
+    if not file_id or file_id is None or file_id == "None":
+        logger.error(f"[REJECTED] '{media.file_name}' has a null file_id. Skipping save.")
+        return False, 2 
+        
+    # Pehle apostrophe ko bina space ke hatayenge taaki "Don't" -> "Dont" bane ("Don t" nahi)
+    clean_name = re.sub(r"['’`]", "", str(media.file_name))
+    file_name = re.sub(
+        r"[_\-\.#+$%^&*()!~,;:\"?/<>\[\]{}=|\\]", " ", clean_name
+    )
+    file_name = re.sub(r"\s+", " ", file_name).strip()
+
+    # --- MEMORY OPTIMIZATION: Check Local Cache First ---
+    cache_key = f"{file_name}_{media.file_size}"
+    if duplicate_cache.contains(cache_key):
+        logger.info(f"[SKIP-CACHE] '{file_name}' already skipped recently.")
+        return False, 0
+    # --------------------------------------------------
+
+    # --- SMART DUPLICATE CHECK ---
+    search_query = {
+        "$or": [
+            {"file_id": file_id},
+            {"file_name": file_name, "file_size": media.file_size}
+        ]
+    }
+    
+    if await Media.count_documents(search_query, limit=1):
+        logger.info(f"[SKIP] '{file_name}' (or identical content) already in Primary DB.")
+        duplicate_cache.add(cache_key) 
+        return False, 0
+        
+    if MULTIPLE_DB and await Media2.count_documents(search_query, limit=1):
+        logger.info(f"[SKIP] '{file_name}' (or identical content) already in Secondary DB.")
+        duplicate_cache.add(cache_key) 
+        return False, 0
+    # -----------------------------
+
+    saveMedia = Media
+    target_db = "Primary"
+    if MULTIPLE_DB:
+        try:
+            primary_db_size = await check_db_size(db)
+            if primary_db_size >= 407:
+                saveMedia = Media2
+                target_db = "Secondary"
+                logger.warning("Switching to Secondary DB due to size threshold.")
+        except Exception as e:
+            logger.error(
+                "Error during MULTIPLE_DB size check; defaulting to primary DB.", exc_info=e
+            )
+
+    try:
+        record = saveMedia(
+            file_id=file_id,
+            file_ref=file_ref,
+            file_name=file_name,
+            file_size=media.file_size,
+            file_type=media.file_type,
+            mime_type=media.mime_type,
+            caption=(media.caption.html if media.caption and INDEX_CAPTION else None),
+            quality=getattr(media, 'quality', 'Standard'),
+            season=getattr(media, 'season', 'N/A'),       
+        )
+    except ValidationError as e:
+        logger.exception(f"[VALIDATION ERROR] '{file_name}' → {e}")
+        return False, 2
+    try:
+        await record.commit()
+        duplicate_cache.add(cache_key)
+    except DuplicateKeyError:
+        logger.info(
+            f"[SKIP] DuplicateKey: '{file_name}' already exists in {target_db} DB."
+        )
+        duplicate_cache.add(cache_key)
+        return False, 0
+    except Exception as e:
+        logger.exception(
+            f"[ERROR] Failed commit of '{file_name}' to {target_db} DB.", exc_info=e
+        )
+        return False, 3
+        
+    logger.info(f"[SUCCESS] '{file_name}' saved to {target_db} DB.")
+    
+    # --- MEMORY CLEANUP ---
+    del search_query
+    del record
+    
+    return True, 1
+
+async def get_search_results(chat_id, query, file_type=None, max_results=None, offset=0, filter=False):
+    if chat_id is not None:
+        settings = await get_settings(int(chat_id))
+        if max_results is None:
+            try:
+                max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
+            except KeyError:
+                await save_group_settings(int(chat_id), "max_btn", True)
+                settings = await get_settings(int(chat_id))
+                max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
+
+    
+    def build_smart_pattern(q_str):
+        # Clean apostrophes and special symbols from search query
+        q_str = re.sub(r"['’`]", "", q_str)
+        q_str = re.sub(r"[_\-\.#+$%^&*()!~,;:\"?/<>\[\]{}=|\\]", " ", q_str).strip()
+        if not q_str:
+            return ""
+        
+        words = q_str.split()
+        lookaheads = []
+        for word in words:
+            # 1. Smart Season/Volume/Episode Matcher (s1 == s01 == season 1 == vol 1)
+            s_match = re.match(r"^(?:s|season|vol|volume)0*(\d+)$", word, re.IGNORECASE)
+            e_match = re.match(r"^(?:e|ep|episode)0*(\d+)$", word, re.IGNORECASE)
+            
+            if s_match:
+                num = s_match.group(1)
+                w_pat = rf"\b(?:s|season|vol|volume)\s*0*{num}\b"
+            elif e_match:
+                num = e_match.group(1)
+                w_pat = rf"\b(?:e|ep|episode)\s*0*{num}\b"
+            # 2. Smart Apostrophe Fix for already-indexed files ("dont" matches both "dont" and "don t")
+            elif word.lower().endswith("nt") and len(word) > 2:
+                base = re.escape(word[:-1])
+                w_pat = rf"{base}\s*t"
+            elif word.lower().endswith("s") and len(word) > 3:
+                base = re.escape(word[:-1])
+                w_pat = rf"{base}\s*s?"
+            else:
+                w_pat = re.escape(word)
+                
+            lookaheads.append(f"(?=.*{w_pat})")
+            
+        return "^" + "".join(lookaheads)
+
+    if isinstance(query, list):
+        raw_patterns = [build_smart_pattern(q) for q in query if q.strip()]
+        raw_patterns = [p for p in raw_patterns if p]
+        raw_pattern = '|'.join(raw_patterns)
+        regex_list = [re.compile(raw_pattern, re.IGNORECASE)] if raw_pattern else []
+        
+        if USE_CAPTION_FILTER:
+            filter_mongo = {"$or": ([{"file_name": r} for r in regex_list] + [{"caption": r} for r in regex_list])}
+        else:
+            filter_mongo = {"$or": [{"file_name": r} for r in regex_list]}
+    else:
+        raw_pattern = build_smart_pattern(query)
+        if not raw_pattern:
+            return [], None, 0
+
+        try:
+            regex = re.compile(raw_pattern, flags=re.IGNORECASE)
+        except re.error:
+            return [], None, 0
+
+        if USE_CAPTION_FILTER:
+            filter_mongo = {"$or": [{"file_name": regex}, {"caption": regex}]}
+        else:
+            filter_mongo = {"file_name": regex}
+
+    if file_type:
+        filter_mongo["file_type"] = file_type
+    
+    if ULTRA_FAST_MODE:
+        limit = max_results + 1
+        find_tasks = [Media.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit)]
+        if MULTIPLE_DB:
+            find_tasks.append(Media2.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit))
+        
+        results = await asyncio.gather(*find_tasks)
+        files = results[0]
+        if MULTIPLE_DB and len(results) > 1:
+            files.extend(results[1])
+        
+        files = files[:limit]
+
+        has_next_page = len(files) > max_results
+        if has_next_page:
+            files = files[:-1]
+
+        next_offset = offset + len(files) if has_next_page else ""
+        total_results = offset + len(files) + (1 if has_next_page else 0)
+    else:
+        count_tasks = [Media.count_documents(filter_mongo)]
+        find_tasks = [Media.find(filter_mongo).sort("$natural", -1).skip(offset).limit(max_results).to_list(length=max_results)]
+
+        if MULTIPLE_DB:
+            count_tasks.append(Media2.count_documents(filter_mongo))
+            find_tasks.append(Media2.find(filter_mongo).sort("$natural", -1).skip(offset).limit(max_results).to_list(length=max_results))
+        
+        count_results, find_results = await asyncio.gather(
+            asyncio.gather(*count_tasks),
+            asyncio.gather(*find_tasks)
+        )
+        
+        total_results = sum(count_results)
+        files = find_results[0]
+        if MULTIPLE_DB and len(find_results) > 1:
+            files.extend(find_results[1])
+        
+        files = files[:max_results]
+        
+        next_offset = offset + len(files)
+        if next_offset >= total_results:
+            next_offset = ""
+
+    return files, next_offset, total_results
+
+async def get_bad_files(query, file_type=None):
+    query = query.strip()
+    if not query:
+        raw_pattern = '.'
+    elif ' ' not in query:
+        raw_pattern = r"(\b|[\.\+\-_])" + query + r"(\b|[\.\+\-_])"
+    else:
+        raw_pattern = query.replace(" ", r".*[\s\.\+\-_()]")
+    try:
+        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
+    except:
+        return []
+    if USE_CAPTION_FILTER:
+        filter = {'$or': [{'file_name': regex}, {'caption': regex}]}
+    else:
+        filter = {'file_name': regex}
+    if file_type:
+        filter['file_type'] = file_type
+    cursor1 = Media.find(filter).sort('$natural', -1)
+    files1 = await cursor1.to_list(length=(await Media.count_documents(filter)))
+    if MULTIPLE_DB:
+        cursor2 = Media2.find(filter).sort('$natural', -1)
+        files2 = await cursor2.to_list(length=(await Media2.count_documents(filter)))
+        files = files1 + files2
+    else:
+        files = files1
+    total_results = len(files)
+    return files, total_results
+
+
+async def get_file_details(query):
+    filter = {"file_id": query}
+    
+    tasks = [Media.find(filter).to_list(length=1)]
+    if MULTIPLE_DB:
+        tasks.append(Media2.find(filter).to_list(length=1))
+        
+    results = await asyncio.gather(*tasks)
+    
+    for filedetails in results:
+        if filedetails:
+            return filedetails
+            
+    return []
+
+
+def encode_file_id(s: bytes) -> str:
+    r = b""
+    n = 0
+    for i in s + bytes([22]) + bytes([4]):
+        if i == 0:
+            n += 1
+        else:
+            if n:
+                r += b"\x00" + bytes([n])
+                n = 0
+
+            r += bytes([i])
+    return base64.urlsafe_b64encode(r).decode().rstrip("=")
+
+
+def encode_file_ref(file_ref: bytes) -> str:
+    return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
+
+
+def unpack_new_file_id(new_file_id):
+    """Return file_id, file_ref"""
+    decoded = FileId.decode(new_file_id)
+    file_id = encode_file_id(
+        pack(
+            "<iiqq",
+            int(decoded.file_type),
+            decoded.dc_id,
+            decoded.media_id,
+            decoded.access_hash,
+        )
+    )
+    file_ref = encode_file_ref(decoded.file_reference)
+    return file_id, file_ref
+
+
+async def dreamxbotz_fetch_media(limit: int) -> List[dict]:
+    try:
+        if MULTIPLE_DB:
+            db_size = await check_db_size(Media)
+            if db_size > 407:
+                cursor = Media2.find().sort("$natural", -1).limit(limit)
+                files = await cursor.to_list(length=limit)
+                return files
+        cursor = Media.find().sort("$natural", -1).limit(limit)
+        files = await cursor.to_list(length=limit)
+        return files
+    except Exception as e:
+        logger.error(f"Error in dreamxbotz_fetch_media: {e}")
+        return []
+
+
+async def dreamxbotz_clean_title(filename: str, is_series: bool = False) -> str:
+    try:
+        year_match = re.search(r"^(.*?(\d{4}|\(\d{4}\)))", filename, re.IGNORECASE)
+        if year_match:
+            title = year_match.group(1).replace("(", "").replace(")", "")
+            return (
+                re.sub(
+                    r"(?:@[^ \n\r\t.,:;!?()\[\]{}<>\\\/\"'=_%]+|[._\-\[\]@()]+)",
+                    " ",
+                    title,
+                )
+                .strip()
+                .title()
+            )
+        if is_series:
+            season_match = re.search(
+                r"(.*?)(?:S(\d{1,2})|Season\s*(\d+)|Season(\d+))(?:\s*Combined)?",
+                filename,
+                re.IGNORECASE,
+            )
+            if season_match:
+                title = season_match.group(1).strip()
+                season = (
+                    season_match.group(2)
+                    or season_match.group(3)
+                    or season_match.group(4)
+                )
+                title = (
+                    re.sub(
+                        r"(?:@[^ \n\r\t.,:;!?()\[\]{}<>\\\/\"'=_%]+|[._\-\[\]@()]+)",
+                        " ",
+                        title,
+                    )
+                    .strip()
+                    .title()
+                )
+                return f"{title} S{int(season):02}"
+        title = filename
+        return (
+            re.sub(
+                r"(?:@[^ \n\r\t.,:;!?()\[\]{}<>\\\/\"'=_%]+|[._\-\[\]@()]+)", " ", title
+            )
+            .strip()
+            .title()
+        )
+    except Exception as e:
+        logger.error(f"Error in truncate_title: {e}")
+        return filename
+
+
+async def dreamxbotz_get_movies(limit: int = 20) -> List[str]:
+    try:
+        cursor = await dreamxbotz_fetch_media(limit * 2)
+        results = set()
+        pattern = r"(?:s\d{1,2}|season\s*\d+|season\d+)(?:\s*combined)?(?:e\d{1,2}|episode\s*\d+)?\b"
+        for file in cursor:
+            file_name = getattr(file, "file_name", "")
+            if not re.search(pattern, file_name, re.IGNORECASE):
+                title = await dreamxbotz_clean_title(file_name)
+                results.add(title)
+            if len(results) >= limit:
+                break
+        return sorted(list(results))[:limit]
+    except Exception as e:
+        logger.error(f"Error in dreamxbotz_get_movies: {e}")
+        return []
+
+
+async def dreamxbotz_get_series(limit: int = 30) -> Dict[str, List[int]]:
+    try:
+        cursor = await dreamxbotz_fetch_media(limit * 5)
+        grouped = defaultdict(list)
+        pattern = r"(.*?)(?:S(\d{1,2})|Season\s*(\d+)|Season(\d+))(?:\s*Combined)?(?:E(\d{1,2})|Episode\s*(\d+))?\b"
+        for file in cursor:
+            file_name = getattr(file, "file_name", "")
+            match = re.search(pattern, file_name, re.IGNORECASE)
+            if match:
+                title = await dreamxbotz_clean_title(match.group(1), is_series=True)
+                season = int(match.group(2) or match.group(3) or match.group(4))
+                grouped[title].append(season)
+        return {
+            title: sorted(set(seasons))[:10]
+            for title, seasons in grouped.items()
+            if seasons
+        }
+    except Exception as e:
+        logger.error(f"Error in dreamxbotz_get_series: {e}")
+        return []
