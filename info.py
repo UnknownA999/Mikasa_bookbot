@@ -104,7 +104,7 @@ LANDSCAPE_POSTER = bool(environ.get('LANDSCAPE_POSTER', True)) # Shows landscape
 # ============================
 IS_VERIFY = is_enabled(environ.get('IS_VERIFY', 'False'), False)  # Verification On (True) / Off (False)
 LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-100')) #Verification Channel Id 
-LOG_API_CHANNEL = int(environ.get('LOG_API_CHANNEL', LOG_CHANNEL)) # Redirects to main log channel
+LOG_API_CHANNEL = int(environ.get('LOG_API_CHANNEL', '-100')) # Redirects to main log channel
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://i.ibb.co/VcxqbZfQ/1771453921019.png")
 
 TUTORIAL = environ.get("TUTORIAL", "https://t.me/scout_regimant/8")   # Tutorial link for verification
