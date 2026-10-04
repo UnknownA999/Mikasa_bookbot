@@ -266,7 +266,7 @@ async def next_page(bot, query):
                        InlineKeyboardButton(
                            "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                        InlineKeyboardButton(
-                           "Sᴇɴᴅ Aʟʟ", url=f"[https://t.me/](https://t.me/){temp.U_NAME}?start=allfiles_"{query.message.chat.id}_{key}")
+                           "Sᴇɴᴅ Aʟʟ", url=f"[https://t.me/](https://t.me/){temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
 
                    ]
                    )
@@ -286,7 +286,7 @@ async def next_page(bot, query):
         btn.insert(0, [
             InlineKeyboardButton(
                 "ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
-            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"[https://t.me/](https://t.me/){temp.U_NAME}?start=allfiles_"{query.message.chat.id}_{key}")
+            InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"[https://t.me/](https://t.me/){temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
         ])
     if ULTRA_FAST_MODE:
         if 0 < offset <= 10:
