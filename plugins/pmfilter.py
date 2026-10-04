@@ -934,9 +934,27 @@ async def cb_handler(client: Client, query: CallbackQuery):
         settings = await get_settings(query.message.chat.id)
         
         # ---> 16-HOUR VERIFICATION SYSTEM INJECTED (BATCH) <---
-
-
+        if settings.get('is_verify', IS_VERIFY) and not await db.has_premium_access(query.from_user.id):
+            is_verified = await db.check_verify_status(query.from_user.id)
+            if not is_verified:
+                verify_token = str(random.randint(100000, 999999))
+                v_link = f"https://t.me/{temp.U_NAME}?start=sendall_{query.from_user.id}_{verify_token}_{key}"
+                
+                short_link = await get_shortlink(v_link, query.message.chat.id)
+                
+                v_btn = [
+                    [InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴀʟʟ", url=short_link)],
+                    [InlineKeyboardButton("❓ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ", url=settings.get('tutorial', TUTORIAL))]
+                ]
+                await client.send_photo(
+                    chat_id=query.from_user.id,
+                    photo=VERIFY_IMG,
+                    caption=f"<b>👋 Hᴇʟʟᴏ {query.from_user.mention},\n\n⛔ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!\n\n👉 Pʟᴇᴀsᴇ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ʏᴏᴜʀ ʙᴀᴛᴄʜ ꜰɪʟᴇs.</b>",
+                    reply_markup=InlineKeyboardMarkup(v_btn)
+                )
+                return await query.answer("⚠️ Please Verify First! Link sent to your DM.", show_alert=True)
         # ------------------------------------------------------
+
         
         try:
             await query.answer(url=f"https://telegram.me/{temp.U_NAME}?start=allfiles_{query.message.chat.id}_{key}")
