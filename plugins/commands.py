@@ -264,30 +264,114 @@ async def start(client, message):
     data = message.command[1]
 
     # ════════════════════════════════════════════
-    # 🟢 VERIFICATION COMPLETION LOGIC (STOP LOOP)
+    # 1. VERIFICATION COMPLETION LOGIC
     # ════════════════════════════════════════════
-    if data.startswith("notcopy") or data.startswith("sendall"):
+    if data.startswith("verify_"):
         try:
-            _, req_user_id, verify_id, file_or_key = data.split("_", 3)
+            _, req_user_id, verify_id, actual_data = data.split("_", 3)
             if str(message.from_user.id) != str(req_user_id):
-                return await message.reply_text("⚠️ **This link is not for you!**")
+                return await message.reply_text("⚠️️ **This link is not for you!**")
             
-            # Approve User Verification in Database
-            try:
-                await db.update_verify_status(message.from_user.id)
-            except Exception as e:
-                print(f"DB Error: {e}")
-                await message.reply_text(f"⚠️ Debug Error: {e}")
-
+            await db.update_verify_status(message.from_user.id)
+            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access for the next 16 hours. Enjoy! ✨")
             
-            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access to all books for the next 16 hours. Enjoy! ✨")
-            
-            # Change data to deliver the actual file silently!
-            data = f"allfiles_0_{file_or_key}" if data.startswith("sendall") else f"file_0_{file_or_key}"
+            # Restore original request after verification
+            data = actual_data 
         except Exception as e:
-            print(f"Verify Error: {e}")
             return await message.reply_text("❌ Verification Error! Please try again.")
 
+    # ════════════════════════════════════════════
+    # 2. UNIVERSAL 16-HOUR VERIFICATION GATE (Stops Batch, AllFiles & Single)
+    # ════════════════════════════════════════════
+    if data.startswith(("file_", "allfiles_", "batch_")):
+        try:
+            grp_id = int(data.split("_")[1]) if not data.startswith("batch_") else 0
+        except:
+            grp_id = 0
+            
+        settings = await get_settings(grp_id) if grp_id else {}
+        
+        if settings.get('is_verify', IS_VERIFY) and not await db.has_premium_access(message.from_user.id):
+            is_verified = await db.check_verify_status(message.from_user.id)
+            if not is_verified:
+                verify_token = str(random.randint(100000, 999999))
+                # Wrapping the actual data inside verify_ link
+                v_link = f"https://t.me/{temp.U_NAME}?start=verify_{message.from_user.id}_{verify_token}_{data}"
+                
+                short_link = await get_shortlink(v_link, grp_id)
+                
+                v_btn = [
+                    [InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ", url=short_link)],
+                    [InlineKeyboardButton("❓ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ", url=settings.get('tutorial', TUTORIAL))]
+                ]
+                await message.reply_photo(
+                    photo=VERIFY_IMG,
+                    caption=f"<b>👋 Hᴇʟʟᴏ {message.from_user.mention},\n\n⛔ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!\n\n👉 Pʟᴇᴀsᴇ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 16 Hᴏᴜʀs. Iᴛ ᴛᴀᴋᴇs ᴏɴʟʏ 10 sᴇᴄᴏɴᴅs.</b>",
+                    reply_markup=InlineKeyboardMarkup(v_btn),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return # 🛑 STOP EXECUTION HERE UNTIL VERIFIED
+
+    # ════════════════════════════════════════════
+    # 3. BATCH FILE DELIVERY 
+    # ════════════════════════════════════════════
+    if data.startswith('batch_'):
+        try:
+            _, start_id, end_id = data.split("_")
+            start_id, end_id = int(start_id), int(end_id)
+            target_channel = -1003782307099 # Your Data Media Channel
+            
+            status_msg = await message.reply("🚀 **Sending your files, please wait...**")
+            sent_messages = []
+            
+            for msg_id in range(start_id, end_id + 1):
+                try:
+                    msg = await client.copy_message(
+                        chat_id=message.from_user.id,
+                        from_chat_id=target_channel,
+                        message_id=msg_id
+                    )
+                    sent_messages.append(msg)
+                    await asyncio.sleep(0.5) 
+                except Exception:
+                    pass 
+            
+            await status_msg.delete()
+            
+            if sent_messages:
+                k = await client.send_message(
+                    chat_id=message.from_user.id, 
+                    text=script.DEL_MSG.format(get_time(DELETE_TIME)), 
+                    parse_mode=enums.ParseMode.HTML
+                )
+                
+                # --- PROMO BUTTON FOR BATCH LINKS ---
+                share_url = f"https://t.me/share/url?url=https://t.me/{temp.U_NAME}&text=Check%20out%20this%20amazing%20bot%20for%20free%20Movies,%20Anime,%20K-Dramas,%20C-Dramas%20and%20Books!%20%F0%9F%94%A5"
+                add_group_url = f"https://t.me/{temp.U_NAME}?startgroup=true"
+                promo_btn = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🚫 ʀᴇᴍᴏᴠᴇ ᴀᴅs (ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ)", url=f"https://t.me/{temp.U_NAME}?start=premium")],
+                    [InlineKeyboardButton("➕ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ➕", url=add_group_url)],
+                    [InlineKeyboardButton("🔄 ꜱʜᴀʀᴇ ʙᴏᴛ", url=share_url), InlineKeyboardButton("📢 ᴜᴘᴅᴀᴛᴇꜱ", url=UPDATE_CHNL_LNK)]
+                ])
+                try:
+                    await client.send_photo(chat_id=message.from_user.id, photo="https://i.ibb.co/qMpwxfsZ/IMG-20260218-124754-612.jpg", caption=script.PROMO_MSG, reply_markup=promo_btn, parse_mode=enums.ParseMode.HTML)
+                except:
+                    await client.send_message(chat_id=message.from_user.id, text=script.PROMO_MSG, reply_markup=promo_btn, parse_mode=enums.ParseMode.HTML)
+
+                await asyncio.sleep(DELETE_TIME)
+                for msg in sent_messages:
+                    try:
+                        await msg.delete()
+                    except:
+                        pass
+                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄꜱᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
+            return
+        except Exception as e:
+            return await message.reply(f"❌ **Error processing batch:** {e}")
+
+    # ════════════════════════════════════════════
+    # 4. FETCH FILE DETAILS FOR FILE_ OR ALLFILES_
+    # ════════════════════════════════════════════
     try:
         _, grp_id, file_id = data.split("_", 2)
         grp_id = int(grp_id)
@@ -297,12 +381,11 @@ async def start(client, message):
     # Fetch file details concurrently with user checks
     file_details_task = asyncio.create_task(get_file_details(file_id))
 
-
     if not await db.has_premium_access(message.from_user.id): 
         try:
             btn = []
             chat = int(data.split("_", 2)[1])
-            settings      = await get_settings(chat)
+            settings = await get_settings(chat)
             fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
 
             if fsub_channels:
@@ -311,56 +394,21 @@ async def start(client, message):
                 btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
             if btn:
                 if len(message.command) > 1 and "_" in message.command[1]:
-                    kk, file_id = message.command[1].split("_", 1)
-                    btn.append([
-                        InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
-                    ])
+                    kk, f_id = message.command[1].split("_", 1)
+                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{f_id}")])
                     reply_markup = InlineKeyboardMarkup(btn)
-                photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
-                caption = (
-                    f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
-                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
-                    "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
-                )
                 await message.reply_photo(
-                    photo=photo,
-                    caption=caption,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML
+                    photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
+                    caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.",
+                    reply_markup=reply_markup, parse_mode=enums.ParseMode.HTML
                 )
                 return
-
-        except Exception as e:
-            await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
-            logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
-
-        # ---> 16-HOUR VERIFICATION SYSTEM <---
-        if settings.get('is_verify', IS_VERIFY) and not await db.has_premium_access(message.from_user.id):
-            # Checking verification status from DB
-            is_verified = await db.check_verify_status(message.from_user.id)
-            if not is_verified:
-                verify_token = str(random.randint(100000, 999999))
-                v_link = f"https://t.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_token}_{data}"
-                
-                # Fetching Shortlink based on 1, 2 or 3 link setup
-                short_link = await get_shortlink(v_link, grp_id)
-                
-                v_btn = [
-                    [InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ", url=short_link)],
-                    [InlineKeyboardButton("❓ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ & ᴅᴏᴡɴʟᴏᴀᴅ", url=settings.get('tutorial', TUTORIAL))]
-                ]
-                await message.reply_photo(
-                    photo=VERIFY_IMG,
-                    caption=f"<b>👋 Hᴇʟʟᴏ {message.from_user.mention},\n\n⛔ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!\n\n👉 Pʟᴇᴀsᴇ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 16 Hᴏᴜʀs. Iᴛ ᴛᴀᴋᴇs ᴏɴʟʏ 10 sᴇᴄᴏɴᴅs.</b>",
-                    reply_markup=InlineKeyboardMarkup(v_btn),
-                    parse_mode=enums.ParseMode.HTML
-                )
-                return # Pura process yahin ruk jayega jab tak verify na ho
-        # -------------------------------------
-
+        except:
+            pass
 
     # Now, await the file details task
     files_ = await file_details_task
+
 
 
 
