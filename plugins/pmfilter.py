@@ -1,3 +1,4 @@
+from pyrogram import ContinuePropagation
 from utils import get_size, is_subscribed, is_req_subscribed, group_setting_buttons, get_poster, get_posterx, temp, get_settings, save_group_settings, get_cap, imdb, is_check_admin, extract_request_content, log_error, clean_filename, generate_season_variations, clean_search_text
 import tracemalloc
 from fuzzywuzzy import process
@@ -116,7 +117,7 @@ async def pm_text(bot, message):
     user = message.from_user.first_name
     user_id = message.from_user.id
 
-    # Agar DM mein /search likha hai, toh usko allow karo, baaki commands (/start, /plan etc.) ko chhod do
+    # Agar DM mein /search likha hai, toh usko allow karo, baaki commands ko aage pass karo
     if content.startswith("/"):
         if content.lower().startswith(("/search", "/s ")):
             parts = content.split(" ", 1)
@@ -125,7 +126,7 @@ async def pm_text(bot, message):
             content = parts[1].strip()
             message.text = content
         else:
-            return # Baaki commands commands.py sambhal lega
+            raise ContinuePropagation # 🔥 YEH LINE BOT KO BATA RAHI HAI KI COMMAND KO AAGE (commands.py MEIN) BEJHO
 
     if content.startswith("#"):
         return
