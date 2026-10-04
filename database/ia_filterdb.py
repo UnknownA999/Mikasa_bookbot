@@ -202,7 +202,8 @@ async def save_file(media):
     
     return True, 1
 
-async def get_search_results(chat_id, query, file_type=None, max_results=None, offset=0, filter=False):
+
+async def get_search_results(chat_id, query, file_type=None, max_results=None, offset=0, filter=False, get_counts=False, category=None):
     if chat_id is not None:
         settings = await get_settings(int(chat_id))
         if max_results is None:
@@ -213,86 +214,88 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
                 settings = await get_settings(int(chat_id))
                 max_results = 10 if settings.get("max_btn") else int(MAX_B_TN)
 
-    
     def build_smart_pattern(q_str):
-        # Clean apostrophes and special symbols from search query
         q_str = re.sub(r"['’`]", "", q_str)
         q_str = re.sub(r"[_\-\.#+$%^&*()!~,;:\"?/<>\[\]{}=|\\]", " ", q_str).strip()
-        if not q_str:
-            return ""
-        
+        if not q_str: return ""
         words = q_str.split()
         lookaheads = []
         for word in words:
-            # 1. Smart Season/Volume/Episode Matcher (s1 == s01 == season 1 == vol 1)
             s_match = re.match(r"^(?:s|season|vol|volume)0*(\d+)$", word, re.IGNORECASE)
             e_match = re.match(r"^(?:e|ep|episode)0*(\d+)$", word, re.IGNORECASE)
-            
             if s_match:
-                num = s_match.group(1)
-                w_pat = rf"\b(?:s|season|vol|volume)\s*0*{num}\b"
+                w_pat = rf"\b(?:s|season|vol|volume)\s*0*{s_match.group(1)}\b"
             elif e_match:
-                num = e_match.group(1)
-                w_pat = rf"\b(?:e|ep|episode)\s*0*{num}\b"
-            # 2. Smart Apostrophe Fix for already-indexed files ("dont" matches both "dont" and "don t")
+                w_pat = rf"\b(?:e|ep|episode)\s*0*{e_match.group(1)}\b"
             elif word.lower().endswith("nt") and len(word) > 2:
-                base = re.escape(word[:-1])
-                w_pat = rf"{base}\s*t"
+                w_pat = rf"{re.escape(word[:-1])}\s*t"
             elif word.lower().endswith("s") and len(word) > 3:
-                base = re.escape(word[:-1])
-                w_pat = rf"{base}\s*s?"
+                w_pat = rf"{re.escape(word[:-1])}\s*s?"
             else:
                 w_pat = re.escape(word)
-                
             lookaheads.append(f"(?=.*{w_pat})")
-            
         return "^" + "".join(lookaheads)
 
     if isinstance(query, list):
         raw_patterns = [build_smart_pattern(q) for q in query if q.strip()]
-        raw_patterns = [p for p in raw_patterns if p]
-        raw_pattern = '|'.join(raw_patterns)
+        raw_pattern = '|'.join([p for p in raw_patterns if p])
         regex_list = [re.compile(raw_pattern, re.IGNORECASE)] if raw_pattern else []
-        
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": ([{"file_name": r} for r in regex_list] + [{"caption": r} for r in regex_list])}
         else:
             filter_mongo = {"$or": [{"file_name": r} for r in regex_list]}
     else:
         raw_pattern = build_smart_pattern(query)
-        if not raw_pattern:
-            return [], None, 0
-
+        if not raw_pattern: return [], None, 0
         try:
             regex = re.compile(raw_pattern, flags=re.IGNORECASE)
         except re.error:
             return [], None, 0
-
         if USE_CAPTION_FILTER:
             filter_mongo = {"$or": [{"file_name": regex}, {"caption": regex}]}
         else:
             filter_mongo = {"file_name": regex}
 
+    # Custom Category Filter Logic
     if file_type:
         filter_mongo["file_type"] = file_type
+    elif category == "media":
+        filter_mongo["file_type"] = {"$in": MEDIA_CATEGORIES}
+    elif category == "books":
+        filter_mongo["file_type"] = {"$in": BOOK_CATEGORIES}
+
+    # Fetching dual counts if requested (Useful for initial search)
+    media_count = 0
+    book_count = 0
+    if get_counts:
+        media_filter = filter_mongo.copy()
+        media_filter["file_type"] = {"$in": MEDIA_CATEGORIES}
+        book_filter = filter_mongo.copy()
+        book_filter["file_type"] = {"$in": BOOK_CATEGORIES}
+        
+        m_count_tasks = [Media.count_documents(media_filter)]
+        b_count_tasks = [Media.count_documents(book_filter)]
+        if MULTIPLE_DB:
+            m_count_tasks.append(Media2.count_documents(media_filter))
+            b_count_tasks.append(Media2.count_documents(book_filter))
+        
+        m_res, b_res = await asyncio.gather(asyncio.gather(*m_count_tasks), asyncio.gather(*b_count_tasks))
+        media_count = sum(m_res)
+        book_count = sum(b_res)
     
+    # Query Execution
     if ULTRA_FAST_MODE:
         limit = max_results + 1
         find_tasks = [Media.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit)]
-        if MULTIPLE_DB:
-            find_tasks.append(Media2.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit))
+        if MULTIPLE_DB: find_tasks.append(Media2.find(filter_mongo).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit))
         
         results = await asyncio.gather(*find_tasks)
         files = results[0]
-        if MULTIPLE_DB and len(results) > 1:
-            files.extend(results[1])
+        if MULTIPLE_DB and len(results) > 1: files.extend(results[1])
         
         files = files[:limit]
-
         has_next_page = len(files) > max_results
-        if has_next_page:
-            files = files[:-1]
-
+        if has_next_page: files = files[:-1]
         next_offset = offset + len(files) if has_next_page else ""
         total_results = offset + len(files) + (1 if has_next_page else 0)
     else:
@@ -303,23 +306,20 @@ async def get_search_results(chat_id, query, file_type=None, max_results=None, o
             count_tasks.append(Media2.count_documents(filter_mongo))
             find_tasks.append(Media2.find(filter_mongo).sort("$natural", -1).skip(offset).limit(max_results).to_list(length=max_results))
         
-        count_results, find_results = await asyncio.gather(
-            asyncio.gather(*count_tasks),
-            asyncio.gather(*find_tasks)
-        )
+        count_results, find_results = await asyncio.gather(asyncio.gather(*count_tasks), asyncio.gather(*find_tasks))
         
         total_results = sum(count_results)
         files = find_results[0]
-        if MULTIPLE_DB and len(find_results) > 1:
-            files.extend(find_results[1])
+        if MULTIPLE_DB and len(find_results) > 1: files.extend(find_results[1])
         
         files = files[:max_results]
-        
         next_offset = offset + len(files)
-        if next_offset >= total_results:
-            next_offset = ""
+        if next_offset >= total_results: next_offset = ""
 
+    if get_counts:
+        return files, next_offset, total_results, media_count, book_count
     return files, next_offset, total_results
+
 
 async def get_bad_files(query, file_type=None):
     query = query.strip()
