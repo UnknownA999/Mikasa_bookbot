@@ -110,15 +110,14 @@ async def give_filter(client, message):
 
 
 # 2. PRIVATE (DM) SEARCH: Direct text AUR /search dono par kaam karega!
-# Ab yeh filter /start ya kisi bhi command ko intercept nahi karega
-@Client.on_message(filters.private & filters.text & ~filters.command(["start", "help", "about", "premium", "settings"]) & filters.incoming)
+# Yeh filter sirf un messages ko pakdega jo "/" se start NAHI hote, ya sirf "/search" hain
+@Client.on_message(filters.private & filters.text & filters.incoming)
 async def pm_text(bot, message):
     bot_id = bot.me.id
     content = message.text
     user = message.from_user.first_name
     user_id = message.from_user.id
 
-    # Agar DM mein /search likha hai, toh usko allow karo, baaki commands ko aage pass karo
     if content.startswith("/"):
         if content.lower().startswith(("/search", "/s ")):
             parts = content.split(" ", 1)
@@ -127,7 +126,7 @@ async def pm_text(bot, message):
             content = parts[1].strip()
             message.text = content
         else:
-            raise ContinuePropagation # 🔥 YEH LINE BOT KO BATA RAHI HAI KI COMMAND KO AAGE (commands.py MEIN) BEJHO
+            return # Sab commands ko ignore karega (including /start), taaki commands.py unko handle kar sake
 
     if content.startswith("#"):
         return
