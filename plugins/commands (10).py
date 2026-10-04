@@ -1,0 +1,1987 @@
+import os
+import re, sys
+import json
+import base64
+import logging
+import random
+import asyncio
+import string
+import pytz
+from .pmfilter import auto_filter 
+from Script import script
+from datetime import datetime
+from database.refer import referdb
+from database.config_db import mdb
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup
+from pyrogram import Client, filters, enums
+from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
+from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files, save_file
+from database.users_chats_db import db
+from info import *
+from urllib.parse import quote_plus
+from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, log_error, clean_filename
+import time
+
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+TIMEZONE = "Asia/Kolkata"
+BATCH_FILES = {}
+
+@Client.on_message(filters.command("start") & filters.incoming)
+async def start(client, message):
+    if EMOJI_MODE:
+        try:
+            await message.react(emoji=random.choice(REACTIONS), big=True)
+        except Exception:
+            await message.react(emoji="⚡️", big=True)
+    m = message
+    
+    # --- FIX: NEW USER LOGGER MOVED TO THE VERY TOP ---
+    if message.chat.type == enums.ChatType.PRIVATE:
+        if not await db.is_user_exist(message.from_user.id):
+            await db.add_user(message.from_user.id, message.from_user.first_name)
+            # Log channel msg disabled to keep it clean (as discussed before)
+            pass 
+    # --------------------------------------------------
+
+    # 🛑 UNIVERSAL FSUB CHECK FOR ALL BOT LINKS (DEEP LINKS) 🛑
+    if len(message.command) > 1 and message.command[1] not in ["subscribe", "error", "okay", "help", "about"]:
+        try:
+            if not await db.has_premium_access(message.from_user.id):
+                btn = []
+                if AUTH_CHANNELS:
+                    btn += await is_subscribed(client, message.from_user.id, AUTH_CHANNELS)
+                if AUTH_REQ_CHANNELS:
+                    btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+                
+                if btn:
+                    # User ko wahi link try again mein denge jispar usne click kiya tha
+                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", url=f"https://t.me/{temp.U_NAME}?start={message.command[1]}")])
+                    await message.reply_photo(
+                        photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
+                        caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴀʟʟ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ .",
+                        reply_markup=InlineKeyboardMarkup(btn),
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                    return # Join nahi kiya toh bot yahin ruk jayega!
+        except Exception as e:
+            print(f"Universal Fsub Check Error: {e}")
+    # ─────────────────────────────────────────────
+
+
+    if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        buttons = [[
+                    InlineKeyboardButton('❤️ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ❤️', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
+                ],[
+                    InlineKeyboardButton('🍁 Update Channel 🍁', url=UPDATE_CHNL_LNK)
+                  ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await message.reply(script.GSTART_TXT.format(message.from_user.mention if message.from_user else message.chat.title, temp.U_NAME, temp.B_NAME), reply_markup=reply_markup, disable_web_page_preview=True)
+        await asyncio.sleep(2) 
+        if not await db.get_chat(message.chat.id):
+            total=await client.get_chat_members_count(message.chat.id)
+            await client.send_message(LOG_CHANNEL, script.LOG_TEXT_G.format(message.chat.title, message.chat.id, total, "Unknown"))       
+            await db.add_chat(message.chat.id, message.chat.title)
+        return 
+
+    if len(message.command) != 2:
+        buttons = [[
+                    InlineKeyboardButton('🔰 ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🔰', url=f'http://telegram.me/{temp.U_NAME}?startgroup=true')
+                ],[
+                    InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
+                    InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
+                ],[
+                    InlineKeyboardButton('ᴘʀᴏᴍᴏᴛᴇ ʏᴏᴜʀ ᴄʜᴀɴɴᴇʟ ʜᴇʀᴇ ☕︎', url=GRP_LNK),     
+                    InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
+                ],[
+                    InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
+                ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        current_time = datetime.now(pytz.timezone(TIMEZONE))
+        curr_time = current_time.hour        
+        if curr_time < 12:
+            gtxt = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ 🌞" 
+        elif curr_time < 17:
+            gtxt = "ɢᴏᴏᴅ ᴀғᴛᴇʀɴᴏᴏɴ 🌓" 
+        elif curr_time < 21:
+            gtxt = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌘"
+        else:
+            gtxt = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌑"
+        m=await message.reply_text("⏳")
+        await asyncio.sleep(0.4)
+        await m.delete()        
+        await message.reply_photo(
+            photo=random.choice(PICS),
+            caption=script.START_TXT.format(message.from_user.mention, gtxt, temp.U_NAME, temp.B_NAME),
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+        return
+
+    if len(message.command) == 2 and message.command[1] in ["subscribe", "error", "okay", "help"]:
+        buttons = [[
+                    InlineKeyboardButton('🔰 ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🔰', url=f'http://telegram.me/{temp.U_NAME}?startgroup=true')
+                ],[
+                    InlineKeyboardButton(' ʜᴇʟᴘ 📢', callback_data='help'),
+                    InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
+                ],[
+                    InlineKeyboardButton('ᴘʀᴏᴍᴏᴛᴇ ʏᴏᴜʀ ᴄʜᴀɴɴᴇʟ ʜᴇʀᴇ ☕︎', url=GRP_LNK),
+                    InlineKeyboardButton('🏆 ʟᴇᴀᴅᴇʀʙᴏᴀʀᴅ', callback_data='show_leaderboard')
+                ],[
+                    InlineKeyboardButton('📊 ᴍʏ ᴘʀᴏꜰɪʟᴇ', callback_data='my_profile_cb'),
+                    InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch")
+                ],[
+                    InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info")
+                ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        current_time = datetime.now(pytz.timezone(TIMEZONE))
+        curr_time = current_time.hour        
+        if curr_time < 12:
+            gtxt = "ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ 🌞" 
+        elif curr_time < 17:
+            gtxt = "ɢᴏᴏᴅ ᴀғᴛᴇʀɴᴏᴏɴ 🌓" 
+        elif curr_time < 21:
+            gtxt = "ɢᴏᴏᴅ ᴇᴠᴇɴɪɴɢ 🌘"
+        else:
+            gtxt = "ɢᴏᴏᴅ ɴɪɢʜᴛ 🌑"
+        m=await message.reply_text("⏳")
+        await asyncio.sleep(0.4)
+        await m.delete()        
+        await message.reply_photo(
+            photo=random.choice(PICS),
+            caption=script.START_TXT.format(message.from_user.mention, gtxt, temp.U_NAME, temp.B_NAME),
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+        return
+    if message.command[1].startswith("reff_"):
+        try:
+            user_id = int(message.command[1].split("_")[1])
+        except ValueError:
+            await message.reply_text("Invalid refer!")
+            return
+        if user_id == message.from_user.id:
+            await message.reply_text("Hᴇʏ Dᴜᴅᴇ, Yᴏᴜ Cᴀɴ'ᴛ Rᴇғᴇʀ Yᴏᴜʀsᴇʟғ 🤣!\n\nsʜᴀʀᴇ ʟɪɴᴋ ʏᴏᴜʀ ғʀɪᴇɴᴅ ᴀɴᴅ ɢᴇᴛ 10 ʀᴇғᴇʀʀᴀʟ ᴘᴏɪɴᴛ ɪғ ʏᴏᴜ ᴀʀᴇ ᴄᴏʟʟᴇᴄᴛɪɴɢ 100 ʀᴇғᴇʀʀᴀʟ ᴘᴏɪɴᴛs ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ɢᴇᴛ 1 ᴍᴏɴᴛʜ ғʀᴇᴇ ᴘʀᴇᴍɪᴜᴍ ᴍᴇᴍʙᴇʀsʜɪᴘ.")
+            return
+        if referdb.is_user_in_list(message.from_user.id):
+            await message.reply_text("Yᴏᴜ ʜᴀᴠᴇ ʙᴇᴇɴ ᴀʟʀᴇᴀᴅʏ ɪɴᴠɪᴛᴇᴅ ❗")
+            return
+        if not is_new_user: 
+            await message.reply_text("‼️ Yᴏᴜ Hᴀᴠᴇ Bᴇᴇɴ Aʟʀᴇᴀᴅʏ Iɴᴠɪᴛᴇᴅ ᴏʀ Jᴏɪɴᴇᴅ")
+            return 
+
+        try:
+            uss = await client.get_users(user_id)
+        except Exception:
+            return 	    
+        referdb.add_user(message.from_user.id)
+        fromuse = referdb.get_refer_points(user_id) + 10
+        if fromuse == 100:
+            referdb.add_refer_points(user_id, 0) 
+            await message.reply_text(f"🎉 𝗖𝗼𝗻𝗴𝗿𝗮𝘁𝘂𝗹𝗮𝘁𝗶𝗼𝗻𝘀! 𝗬𝗼𝘂 𝘄𝗼𝗻 𝟭𝟬 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗽𝗼𝗶𝗻𝘁 𝗯𝗲𝗰𝗮𝘂𝘀𝗲 𝗬𝗼𝘂 𝗵𝗮𝘃𝗲 𝗯𝗲𝗲𝗻 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆 𝗜𝗻𝘃𝗶𝘁𝗲𝗱 ☞ {uss.mention}!")		    
+            await message.reply_text(user_id, f"You have been successfully invited by {message.from_user.mention}!") 	
+            seconds = 2592000
+            if seconds > 0:
+                expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
+                user_data = {"id": user_id, "expiry_time": expiry_time}
+                await db.update_user(user_data) 
+                await client.send_message(
+                chat_id=user_id,
+                text=f"<b>Hᴇʏ {uss.mention}\n\nYᴏᴜ ɢᴏᴛ 1 ᴍᴏɴᴛʜ ᴘʀᴇᴍɪᴜᴍ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙʏ ɪɴᴠɪᴛɪɴɢ 10 ᴜsᴇʀs ❗", disable_web_page_preview=True              
+                )
+            for admin in ADMINS:
+                await client.send_message(chat_id=admin, text=f"Sᴜᴄᴄᴇss ғᴜʟʟʏ ᴛᴀsᴋ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ʙʏ ᴛʜɪs ᴜsᴇʀ:\n\nuser Nᴀᴍᴇ: {uss.mention}\n\nUsᴇʀ ɪᴅ: {uss.id}!")	
+        else:
+            referdb.add_refer_points(user_id, fromuse)
+            await message.reply_text(f"You have been successfully invited by {uss.mention}!")
+            await client.send_message(user_id, f"𝗖𝗼𝗻𝗴𝗿𝗮𝘁𝘂𝗹𝗮𝘁𝗶𝗼𝗻𝘀! 𝗬𝗼𝘂 𝘄𝗼𝗻 𝟭𝟬 𝗥𝗲𝗳𝗲𝗿𝗿𝗮𝗹 𝗽𝗼𝗶𝗻𝘁 𝗯𝗲𝗰𝗮𝘂𝘀𝗲 𝗬𝗼𝘂 𝗵𝗮𝘃𝗲 𝗯𝗲𝗲𝗻 𝗦𝘂𝗰𝗰𝗲𝘀𝘀𝗳𝘂𝗹𝗹𝘆 𝗜𝗻𝘃𝗶𝘁𝗲𝗱 ☞{message.from_user.mention}!")
+        return
+        
+    if len(message.command) == 2 and message.command[1] in ["premium"]:
+        buttons = [[
+                    InlineKeyboardButton('📲 ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ', url=OWNER_LNK)
+                  ],[
+                    InlineKeyboardButton('❌ ᴄʟᴏꜱᴇ ❌', callback_data='close_data')
+                  ]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await message.reply_photo(
+            photo=(SUBSCRIPTION),
+            caption=script.PREPLANS_TXT.format(message.from_user.mention, OWNER_UPI_ID, QR_CODE),
+            reply_markup=reply_markup,
+            parse_mode=enums.ParseMode.HTML
+        )
+        return  
+    
+    # --- BATCH VERIFICATION RECEIVER ---
+
+
+    # --- BATCH DELIVERY & VERIFICATION CHECK ---
+    if len(message.command) == 2 and message.command[1].startswith('batch_'):
+        try:
+            _, start_id, end_id = message.command[1].split("_")
+            start_id, end_id = int(start_id), int(end_id)
+            target_channel = -1003782307099 # Your Data Media Channel
+            
+            status_msg = await message.reply("🚀 **Sending your files, please wait...**")
+            
+            # List to keep track of the files we send
+            sent_messages = []
+            
+            for msg_id in range(start_id, end_id + 1):
+                try:
+                    msg = await client.copy_message(
+                        chat_id=message.from_user.id,
+                        from_chat_id=target_channel,
+                        message_id=msg_id
+                    )
+                    sent_messages.append(msg)
+                    await asyncio.sleep(0.5) 
+                except Exception:
+                    pass 
+            
+            await status_msg.delete()
+            
+            if sent_messages:
+                k = await client.send_message(
+                    chat_id=message.from_user.id, 
+                    text=script.DEL_MSG.format(get_time(DELETE_TIME)), 
+                    parse_mode=enums.ParseMode.HTML
+                )
+                await asyncio.sleep(DELETE_TIME)
+                for msg in sent_messages:
+                    try:
+                        await msg.delete()
+                    except:
+                        pass
+                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄꜱᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
+            return
+        except Exception as e:
+            return await message.reply(f"❌ **Error processing batch:** {e}")
+
+
+    
+    data = message.command[1]
+
+    # ════════════════════════════════════════════
+    # 🟢 VERIFICATION COMPLETION LOGIC (STOP LOOP)
+    # ════════════════════════════════════════════
+    if data.startswith("notcopy") or data.startswith("sendall"):
+        try:
+            _, req_user_id, verify_id, file_or_key = data.split("_", 3)
+            if str(message.from_user.id) != str(req_user_id):
+                return await message.reply_text("⚠️ **This link is not for you!**")
+            
+            # Approve User Verification in Database
+            try:
+                await db.update_verify_status(message.from_user.id)
+            except Exception as e:
+                print(f"DB Error: {e}")
+                await message.reply_text(f"⚠️ Debug Error: {e}")
+
+            
+            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access to all books for the next 16 hours. Enjoy! ✨")
+            
+            # Change data to deliver the actual file silently!
+            data = f"allfiles_0_{file_or_key}" if data.startswith("sendall") else f"file_0_{file_or_key}"
+        except Exception as e:
+            print(f"Verify Error: {e}")
+            return await message.reply_text("❌ Verification Error! Please try again.")
+
+    try:
+        _, grp_id, file_id = data.split("_", 2)
+        grp_id = int(grp_id)
+    except:
+        _, grp_id, file_id = "", 0, data
+
+    # Fetch file details concurrently with user checks
+    file_details_task = asyncio.create_task(get_file_details(file_id))
+
+
+    if not await db.has_premium_access(message.from_user.id): 
+        try:
+            btn = []
+            chat = int(data.split("_", 2)[1])
+            settings      = await get_settings(chat)
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
+
+            if fsub_channels:
+                btn += await is_subscribed(client, message.from_user.id, fsub_channels)
+            if AUTH_REQ_CHANNELS:
+                btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+            if btn:
+                if len(message.command) > 1 and "_" in message.command[1]:
+                    kk, file_id = message.command[1].split("_", 1)
+                    btn.append([
+                        InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
+                    ])
+                    reply_markup = InlineKeyboardMarkup(btn)
+                photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
+                caption = (
+                    f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
+                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
+                    "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
+                )
+                await message.reply_photo(
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return
+
+        except Exception as e:
+            await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
+            logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
+
+        # ---> 16-HOUR VERIFICATION SYSTEM <---
+        settings = await get_settings(chat)
+        if settings.get('is_verify', IS_VERIFY):
+            user_verified = await db.is_user_verified(message.from_user.id)
+            time_expired = await db.use_second_shortener(message.from_user.id, 57600) # 16 Hours
+
+            if not user_verified or time_expired:
+                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                await db.create_verify_id(message.from_user.id, verify_id)
+                temp.VERIFICATIONS[message.from_user.id] = chat
+
+                # Link generation for Batch or Single file
+                if data.startswith("allfiles"):
+                    key = data.split('_', 2)[2] if len(data.split('_')) > 2 else file_id
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{key}"
+                else:
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{file_id}"
+                
+                try:
+                    verify = await get_shortlink(verify_url, chat, False, False)
+                except Exception as e:
+                    print(f"Shortlink Error: {e}")
+                    verify = verify_url
+                    
+                buttons = [
+                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL))],
+                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", callback_data="premium_info")]
+                ]
+                
+                await message.reply_photo(
+                    photo=VERIFY_IMG,
+                    caption=f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return
+        # -------------------------------------
+
+    # Now, await the file details task
+    files_ = await file_details_task
+
+
+
+
+    if data.startswith("allfiles"):
+        try:
+            files = temp.GETALL.get(file_id)
+            if not files:
+                return await message.reply('<b><i>ɴᴏ ꜱᴜᴄʜ ꜰɪʟᴇ ᴇxɪꜱᴛꜱ !</b></i>')
+            filesarr = []
+            for file in files:
+                file_id = file.file_id
+                files_ = await get_file_details(file_id)
+                files1 = files_[0]
+                title = clean_filename(files1.file_name)
+                size = get_size(files1.file_size)
+                
+                # --- FETCH QUALITY & SEASON FOR ALL FILES ---
+                quality = getattr(files1, 'quality', 'Standard')
+                season = getattr(files1, 'season', 'N/A')
+                # ---------------------------------------------
+                
+                f_caption = files1.caption
+                settings = await get_settings(int(grp_id))
+                # Force fallback to our new beautiful script.CAPTION
+                DREAMX_CAPTION = settings.get('caption', script.CAPTION)
+                if DREAMX_CAPTION:
+                    try:
+                        f_caption=DREAMX_CAPTION.format(
+                            file_name= '' if title is None else title, 
+                            file_size='' if size is None else size, 
+                            file_caption='' if f_caption is None else f_caption,
+                            quality=quality, 
+                            season=season
+                        )
+                    except Exception as e:
+                        logger.exception(e)
+                        f_caption = f_caption
+                if f_caption is None:
+                    f_caption = f"{clean_filename(files1.file_name)}"
+                
+                if STREAM_MODE and not PREMIUM_STREAM_MODE:
+                    btn = [
+                        [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
+                        [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
+                    ]
+                elif STREAM_MODE and PREMIUM_STREAM_MODE:
+                    if not await db.has_premium_access(message.from_user.id):
+                        btn = [
+                            [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'prestream')],
+                            [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)] 
+                        ]
+                    else:
+                        btn = [
+                            [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
+                            [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]  
+                        ]
+                else:
+                    btn = [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]]
+                
+                # ---> AMAZON LOGIC FOR BATCH FILES <---
+                book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
+                file_name_lower = files1.file_name.lower()
+                
+                if file_name_lower.endswith(book_extensions):
+                    AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+                    FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+                    
+                    if AMAZON_TAG or FLIPKART_TAG:
+                        clean_name = files1.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+                        buy_buttons = []
+                        
+                        if AMAZON_TAG:
+                            amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                            buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+                        if FLIPKART_TAG:
+                            fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                            buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                            
+                        if buy_buttons:
+                            btn.insert(-1, buy_buttons)
+                # --------------------------------------
+
+                msg = await client.send_cached_media(
+                    chat_id=message.from_user.id,
+
+                    file_id=file_id,
+                    caption=f_caption,
+                    protect_content=settings.get('file_secure', PROTECT_CONTENT),
+                    reply_markup=InlineKeyboardMarkup(btn)
+                )
+                filesarr.append(msg)
+            k = await client.send_message(chat_id=message.from_user.id, text=script.DEL_MSG.format(get_time(DELETE_TIME)), parse_mode=enums.ParseMode.HTML)
+            await asyncio.sleep(DELETE_TIME)
+            for x in filesarr:
+                await x.delete()
+            await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
+            return
+        except Exception as e:
+            logger.exception(e)
+            return
+
+    user = message.from_user.id
+    settings = await get_settings(int(grp_id))
+    if not files_:
+        pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
+        try:
+            if STREAM_MODE and not PREMIUM_STREAM_MODE:
+                btn = [
+                    [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
+                    [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]  
+                ]
+            elif STREAM_MODE and PREMIUM_STREAM_MODE:
+                if not await db.has_premium_access(message.from_user.id):
+                   btn = [
+                        [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'prestream')],
+                        [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)] 
+                    ]
+                else:
+                    btn = [
+                        [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
+                        [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]  
+                    ]
+            else:
+                btn = [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]] 
+            
+            msg = await client.send_cached_media(
+                chat_id=message.from_user.id,
+                file_id=file_id,
+                protect_content=settings.get('file_secure', PROTECT_CONTENT),
+                reply_markup=InlineKeyboardMarkup(btn))
+
+            filetype = msg.media
+            file = getattr(msg, filetype.value)
+            title = clean_filename(file.file_name)
+            size=get_size(file.file_size)
+            
+            quality = "Standard"
+            season = "N/A"
+            f_caption = f"<code>{title}</code>"
+            settings = await get_settings(int(grp_id))
+            DREAMX_CAPTION = settings.get('caption', script.CAPTION)
+            if DREAMX_CAPTION:
+                try:
+                    f_caption=DREAMX_CAPTION.format(
+                        file_name= '' if title is None else title, 
+                        file_size='' if size is None else size, 
+                        file_caption='',
+                        quality=quality,
+                        season=season
+                    )
+                except:
+                    return
+
+            # ---> AMAZON LOGIC FOR ENCODED FILES <---
+
+            book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
+            file_name_lower = file.file_name.lower()
+            
+            if file_name_lower.endswith(book_extensions):
+                AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+                FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+                
+                if AMAZON_TAG or FLIPKART_TAG:
+                    clean_name = file.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+                    buy_buttons = []
+                    
+                    if AMAZON_TAG:
+                        amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                        buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+                    if FLIPKART_TAG:
+                        fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                        buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                        
+                    if buy_buttons:
+                        btn.insert(-1, buy_buttons)
+            # ----------------------------------------
+
+            await msg.edit_caption(
+                f_caption,
+                reply_markup=InlineKeyboardMarkup(btn)
+            )
+
+            k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
+                quote=True, parse_mode=enums.ParseMode.HTML
+            )
+            await asyncio.sleep(DELETE_TIME)
+            await msg.delete()
+            await k.edit_text("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
+            return
+        except Exception as e:
+            logger.exception(e)
+            pass
+        return await message.reply('ɴᴏ ꜱᴜᴄʜ ꜰɪʟᴇ ᴇxɪꜱᴛꜱ !')
+    
+    files = files_[0]
+    title = clean_filename(files.file_name)
+    size = get_size(files.file_size)
+    f_caption = files.caption
+    
+    # --- FETCH QUALITY & SEASON FOR SINGLE FILE ---
+    quality = getattr(files, 'quality', 'Standard')
+    season = getattr(files, 'season', 'N/A')
+    # ----------------------------------------------
+    
+    settings = await get_settings(int(grp_id))            
+    DREAMX_CAPTION = settings.get('caption', script.CAPTION)
+    if DREAMX_CAPTION:
+        try:
+            f_caption=DREAMX_CAPTION.format(
+                file_name= '' if title is None else title, 
+                file_size='' if size is None else size, 
+                file_caption='' if f_caption is None else f_caption,
+                quality=quality, 
+                season=season
+            )
+        except Exception as e:
+            logger.exception(e)
+            f_caption = f_caption
+
+    if f_caption is None:
+        f_caption = clean_filename(files.file_name)
+    
+    # 1. SETUP THE BUTTON LIST
+    btn = []
+    
+    # 2. ADD STREAM BUTTONS (If enabled)
+    if STREAM_MODE and not PREMIUM_STREAM_MODE:
+        btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')])
+    elif STREAM_MODE and PREMIUM_STREAM_MODE:
+        if not await db.has_premium_access(message.from_user.id):
+            btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'prestream')])
+        else:
+            btn.append([InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')])
+    
+    # 3. ADD AFFILIATE BUTTONS (Only for Books)
+    book_extensions = ('pdf', 'epub', 'mobi', 'cbz', 'cbr', 'txt', 'azw3')
+    file_name_lower = files.file_name.lower()
+    
+    if file_name_lower.endswith(book_extensions):
+        # -> FAILSAFE ADDED HERE <-
+        AMAZON_TAG = os.environ.get("AMAZON_TAG", "mikasabooks-21")
+        FLIPKART_TAG = os.environ.get("FLIPKART_TAG", "")
+        
+        if AMAZON_TAG or FLIPKART_TAG:
+            clean_name = files.file_name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ')
+            buy_buttons = []
+            
+            if AMAZON_TAG:
+                amz_url = f"https://www.amazon.in/s?k={quote_plus(clean_name)}&tag={AMAZON_TAG}"
+                buy_buttons.append(InlineKeyboardButton("🛒 Amazon", url=amz_url))
+            if FLIPKART_TAG:
+                fk_url = f"https://www.flipkart.com/search?q={quote_plus(clean_name)}&affid={FLIPKART_TAG}"
+                buy_buttons.append(InlineKeyboardButton("🛒 Flipkart", url=fk_url))
+                
+            if buy_buttons:
+                btn.append(buy_buttons)
+
+
+    # 4. ADD REPORT, UPLOAD & TUTORIAL BUTTONS
+    btn.append([
+        InlineKeyboardButton("🚨 Report File", callback_data=f"report#{file_id}")
+    ])
+    btn.append([
+        InlineKeyboardButton("📤 Upload Book", callback_data="upload_instructions"),
+        InlineKeyboardButton("❓ How to Upload", url="https://t.me/YOUR_VIDEO_TUTORIAL_LINK") # Yahan apna video link daal dena!
+    ])
+    
+    # 5. ADD JOIN CHANNEL BUTTON (Always at the bottom)
+    btn.append([InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)])
+
+
+    msg = await client.send_cached_media(
+        chat_id=message.from_user.id,
+        file_id=file_id,
+        caption=f_caption,
+        protect_content=settings.get('file_secure', PROTECT_CONTENT),
+        reply_markup=InlineKeyboardMarkup(btn)
+    )
+    k = await msg.reply(script.DEL_MSG.format(get_time(DELETE_TIME)),
+        quote=True, parse_mode=enums.ParseMode.HTML
+    )     
+    await asyncio.sleep(DELETE_TIME)
+    await msg.delete()
+    await k.edit_text("<b>ʏᴏᴜʀ ᴠɪᴅᴇᴏ / ꜰɪʟᴇ ɪꜱ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ !!</b>")
+    return
+
+@Client.on_message(filters.command('logs') & filters.user(ADMINS))
+async def log_file(bot, message):
+    """Send log file"""
+    try:
+        await message.reply_document('DreamXlogs.txt', caption="📑 **ʟᴏɢꜱ**")
+    except Exception as e:
+        await message.reply(str(e))
+
+@Client.on_message(filters.command('delete') & filters.user(ADMINS))
+async def delete(bot, message):
+    """Delete file from database"""
+    reply = message.reply_to_message
+    if reply and reply.media:
+        msg = await message.reply("Pʀᴏᴄᴇssɪɴɢ...⏳", quote=True)
+    else:
+        await message.reply('Rᴇᴘʟʏ ᴛᴏ ғɪʟᴇ ᴡɪᴛʜ /delete ᴡʜɪᴄʜ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴅᴇʟᴇᴛᴇ', quote=True)
+        return
+
+    for file_type in ("document", "video", "audio"):
+        media = getattr(reply, file_type, None)
+        if media is not None:
+            break
+    else:
+        await msg.edit('Tʜɪs ɪs ɴᴏᴛ sᴜᴘᴘᴏʀᴛᴇᴅ ғɪʟᴇ ғᴏʀᴍᴀᴛ')
+        return
+    
+    file_id, file_ref = unpack_new_file_id(media.file_id)
+    if await Media.count_documents({'file_id': file_id}):
+        result = await Media.collection.delete_one({
+            '_id': file_id,
+        })
+    else:
+        result = await Media2.collection.delete_one({
+            '_id': file_id,
+        })
+    if result.deleted_count:
+        await msg.edit('Fɪʟᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ғʀᴏᴍ ᴅᴀᴛᴀʙᴀsᴇ ✅')
+    else:
+        file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
+        result = await Media.collection.delete_many({
+            'file_name': file_name,
+            'file_size': media.file_size,
+            'mime_type': media.mime_type
+            })
+        if result.deleted_count:
+            await msg.edit('Fɪʟᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ғʀᴏᴍ ᴅᴀᴛᴀʙᴀsᴇ ✅')
+        else:
+            result = await Media2.collection.delete_many({
+                'file_name': file_name,
+                'file_size': media.file_size,
+                'mime_type': media.mime_type
+            })
+            if result.deleted_count:
+                await msg.edit('Fɪʟᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ғʀᴏᴍ ᴅᴀᴛᴀʙᴀsᴇ')
+            else:
+                result = await Media.collection.delete_many({
+                    'file_name': media.file_name,
+                    'file_size': media.file_size,
+                    'mime_type': media.mime_type
+                })
+                if result.deleted_count:
+                    await msg.edit('Fɪʟᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ғʀᴏᴍ ᴅᴀᴛᴀʙᴀsᴇ ✅')
+                else:
+                    result = await Media2.collection.delete_many({
+                        'file_name': media.file_name,
+                        'file_size': media.file_size,
+                        'mime_type': media.mime_type
+                    })
+                    if result.deleted_count:
+                        await msg.edit('Fɪʟᴇ ɪs sᴜᴄᴄᴇssғᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ғʀᴏᴍ ᴅᴀᴛᴀʙᴀsᴇ ✅')
+                    else:
+                        await msg.edit('Fɪʟᴇ ɴᴏᴛ ғᴏᴜɴᴅ ɪɴ ᴅᴀᴛᴀʙᴀsᴇ ❌')
+
+
+@Client.on_message(filters.command('deleteall') & filters.user(ADMINS))
+async def delete_all_index(bot, message):
+    await message.reply_text(
+        'ᴛʜɪꜱ ᴡɪʟʟ ᴅᴇʟᴇᴛᴇ ᴀʟʟ ʏᴏᴜʀ ɪɴᴅᴇxᴇᴅ ꜰɪʟᴇꜱ !\nᴅᴏ ʏᴏᴜ ꜱᴛɪʟʟ ᴡᴀɴᴛ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ?',
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="⚠️ ʏᴇꜱ ⚠️", callback_data="autofilter_delete"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="❌ ɴᴏ ❌", callback_data="close_data"
+                    )
+                ],
+            ]
+        ),
+        quote=True,
+    )
+
+@Client.on_message(filters.command('settings'))
+async def settings(client, message):
+    user_id = message.from_user.id if message.from_user else None
+    if not user_id:
+        return await message.reply(f"ʏᴏᴜ'ʀᴇ ᴀɴᴏɴʏᴍᴏᴜꜱ ᴀᴅᴍɪɴ.")
+    chat_type = message.chat.type
+    if chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        grp_id = message.chat.id
+        if not await is_check_admin(client, grp_id, message.from_user.id):
+            return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+        await db.connect_group(grp_id, user_id)
+        btn = [[
+                InlineKeyboardButton("👤 ᴏᴘᴇɴ ɪɴ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀᴛ 👤", callback_data=f"opnsetpm#{grp_id}")
+              ],[
+                InlineKeyboardButton("👥 ᴏᴘᴇɴ ʜᴇʀᴇ 👥", callback_data=f"opnsetgrp#{grp_id}")
+              ]]
+        await message.reply_text(
+                text="<b>ᴡʜᴇʀᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴏᴘᴇɴ ꜱᴇᴛᴛɪɴɢꜱ ᴍᴇɴᴜ ? ⚙️</b>",
+                reply_markup=InlineKeyboardMarkup(btn),
+                disable_web_page_preview=True,
+                parse_mode=enums.ParseMode.HTML,
+                reply_to_message_id=message.id
+        )
+    elif chat_type == enums.ChatType.PRIVATE:
+        connected_groups = await db.get_connected_grps(user_id)
+        if not connected_groups:
+            return await message.reply_text("Nᴏ Cᴏɴɴᴇᴄᴛᴇᴅ Gʀᴏᴜᴘs Fᴏᴜɴᴅ .")
+        group_list = []
+        for group in connected_groups:
+            try:
+                Chat = await client.get_chat(group)
+                group_list.append([ InlineKeyboardButton(text=Chat.title, callback_data=f"grp_pm#{Chat.id}") ])
+            except Exception as e:
+                print(f"Error In PM Settings Button - {e}")
+                pass
+        await message.reply_text(
+                    "⚠️ ꜱᴇʟᴇᴄᴛ ᴛʜᴇ ɢʀᴏᴜᴘ ᴡʜᴏꜱᴇ ꜱᴇᴛᴛɪɴɢꜱ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴄʜᴀɴɢᴇ.\n\n"
+                    "ɪꜰ ʏᴏᴜʀ ɢʀᴏᴜᴘ ɪꜱ ɴᴏᴛ ꜱʜᴏᴡɪɴɢ ʜᴇʀᴇ,\n"
+                    "ᴜꜱᴇ /reload ɪɴ ᴛʜᴀᴛ ɢʀᴏᴜᴘ ᴀɴᴅ ɪᴛ ᴡɪʟʟ ᴀᴘᴘᴇᴀʀ ʜᴇʀᴇ.",
+                    reply_markup=InlineKeyboardMarkup(group_list)
+                )
+
+@Client.on_message(filters.command('reload'))
+async def connect_group(client, message):
+    user_id = message.from_user.id
+    if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        await db.connect_group(message.chat.id, user_id)
+        await message.reply_text("Gʀᴏᴜᴘ Rᴇʟᴏᴀᴅᴇᴅ ✅ Nᴏᴡ Yᴏᴜ Cᴀɴ Mᴀɴᴀɢᴇ Tʜɪs Gʀᴏᴜᴘ Fʀᴏᴍ PM.")
+    elif message.chat.type == enums.ChatType.PRIVATE:
+        if len(message.command) < 2:
+            await message.reply_text("Example: /reload 123456789")
+            return
+        try:
+            group_id = int(message.command[1])
+            if not await is_check_admin(client, group_id, user_id):
+                await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+                return
+            chat = await client.get_chat(group_id)
+            await db.connect_group(group_id, user_id)
+            await message.reply_text(f"Lɪɴᴋᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ ✅ {chat.title} ᴛᴏ PM.")
+        except:
+            await message.reply_text("Invalid group ID or error occurred.")
+
+@Client.on_message(filters.command('set_template'))
+async def save_template(client, message):
+    sts = await message.reply("ᴄʜᴇᴄᴋɪɴɢ ᴛᴇᴍᴘʟᴀᴛᴇ...")
+    user_id = message.from_user.id if message.from_user else None
+    if not user_id:
+        return await message.reply("ʏᴏᴜ'ʀᴇ ᴀɴᴏɴʏᴍᴏᴜꜱ ᴀᴅᴍɪɴ.")
+
+    if message.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await sts.edit("⚠️ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ᴀ ɢʀᴏᴜᴘ ᴄʜᴀᴛ.")
+
+    group_id = message.chat.id
+    title = message.chat.title
+    if not await is_check_admin(client, group_id, user_id):
+        await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+        return
+    if len(message.command) < 2:
+        return await sts.edit("⚠️ ɴᴏ ᴛᴇᴍᴘʟᴀᴛᴇ ᴘʀᴏᴠɪᴅᴇᴅ!")
+
+    template = message.text.split(" ", 1)[1]
+    await save_group_settings(group_id, 'template', template)
+    await sts.edit(
+        f"✅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴜᴘᴅᴀᴛᴇᴅ ᴛᴇᴍᴘʟᴀᴛᴇ ꜰᴏʀ <code>{title}</code> ᴛᴏ:\n\n{template}"
+    )
+
+
+@Client.on_message((filters.command(["request", "Request"]) | filters.regex("#request") | filters.regex("#Request")) & filters.group)
+async def requests(bot, message):
+    if REQST_CHANNEL is None or SUPPORT_CHAT_ID is None: return
+    if message.reply_to_message and SUPPORT_CHAT_ID == message.chat.id:
+        chat_id = message.chat.id
+        reporter = str(message.from_user.id)
+        mention = message.from_user.mention
+        success = True
+        content = message.reply_to_message.text
+        try:
+            if REQST_CHANNEL is not None:
+                btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.reply_to_message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                reported_post = await bot.send_message(chat_id=REQST_CHANNEL, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                success = True
+            elif len(content) >= 3:
+                for admin in ADMINS:
+                    btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.reply_to_message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                    reported_post = await bot.send_message(chat_id=admin, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                    success = True
+            else:
+                if len(content) < 3:
+                    await message.reply_text("<b>ʏᴏᴜ ᴍᴜꜱᴛ ᴛʏᴘᴇ ᴀʙᴏᴜᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ [ᴍɪɴɪᴍᴜᴍ 3 ᴄʜᴀʀᴀᴄᴛᴇʀꜱ]. ʀᴇǫᴜᴇꜱᴛꜱ ᴄᴀɴ'ᴛ ʙᴇ ᴇᴍᴘᴛʏ.</b>")
+            if len(content) < 3:
+                success = False
+        except Exception as e:
+            await message.reply_text(f"Error: {e}")
+            pass
+    elif SUPPORT_CHAT_ID == message.chat.id:
+        chat_id = message.chat.id
+        reporter = str(message.from_user.id)
+        mention = message.from_user.mention
+        success = True
+        content = message.text
+        keywords = ["#request", "/request", "#Request", "/Request"]
+        for keyword in keywords:
+            if keyword in content:
+                content = content.replace(keyword, "")
+        try:
+            if REQST_CHANNEL is not None and len(content) >= 3:
+                btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                reported_post = await bot.send_message(chat_id=REQST_CHANNEL, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                success = True
+            elif len(content) >= 3:
+                for admin in ADMINS:
+                    btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                    reported_post = await bot.send_message(chat_id=admin, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                    success = True
+            else:
+                if len(content) < 3:
+                    await message.reply_text("<b>ʏᴏᴜ ᴍᴜꜱᴛ ᴛʏᴘᴇ ᴀʙᴏᴜᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ [ᴍɪɴɪᴍᴜᴍ 3 ᴄʜᴀʀᴀᴄᴛᴇʀꜱ]. ʀᴇǫᴜᴇꜱᴛꜱ ᴄᴀɴ'ᴛ ʙᴇ ᴇᴍᴘᴛʏ.</b>")
+            if len(content) < 3:
+                success = False
+        except Exception as e:
+            await message.reply_text(f"Error: {e}")
+            pass
+    elif SUPPORT_CHAT_ID == message.chat.id:
+        chat_id = message.chat.id
+        reporter = str(message.from_user.id)
+        mention = message.from_user.mention
+        success = True
+        content = message.text
+        keywords = ["#request", "/request", "#Request", "/Request"]
+        for keyword in keywords:
+            if keyword in content:
+                content = content.replace(keyword, "")
+        try:
+            if REQST_CHANNEL is not None and len(content) >= 3:
+                btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                reported_post = await bot.send_message(chat_id=REQST_CHANNEL, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                success = True
+            elif len(content) >= 3:
+                for admin in ADMINS:
+                    btn = [[
+                        InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{message.link}"),
+                        InlineKeyboardButton('ꜱʜᴏᴡ ᴏᴘᴛɪᴏɴꜱ', callback_data=f'show_option#{reporter}')
+                      ]]
+                    reported_post = await bot.send_message(chat_id=admin, text=f"<b>📝 ʀᴇǫᴜᴇꜱᴛ : <u>{content}</u>\n\n📚 ʀᴇᴘᴏʀᴛᴇᴅ ʙʏ : {mention}\n📖 ʀᴇᴘᴏʀᴛᴇʀ ɪᴅ : {reporter}\n\n</b>", reply_markup=InlineKeyboardMarkup(btn))
+                    success = True
+            else:
+                if len(content) < 3:
+                    await message.reply_text("<b>ʏᴏᴜ ᴍᴜꜱᴛ ᴛʏᴘᴇ ᴀʙᴏᴜᴛ ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ [ᴍɪɴɪᴍᴜᴍ 3 ᴄʜᴀʀᴀᴄᴛᴇʀꜱ]. ʀᴇǫᴜᴇꜱᴛꜱ ᴄᴀɴ'ᴛ ʙᴇ ᴇᴍᴘᴛʏ.</b>")
+            if len(content) < 3:
+                success = False
+        except Exception as e:
+            await message.reply_text(f"Error: {e}")
+            pass
+    else:
+        success = False
+    if success:
+        link = await bot.create_chat_invite_link(int(REQST_CHANNEL))
+        btn = [[
+                InlineKeyboardButton('ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ', url=link.invite_link),
+                InlineKeyboardButton('ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ', url=f"{reported_post.link}")
+              ]]
+        await message.reply_text("<b>ʏᴏᴜʀ ʀᴇǫᴜᴇꜱᴛ ʜᴀꜱ ʙᴇᴇɴ ᴀᴅᴅᴇᴅ! ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ꜰᴏʀ ꜱᴏᴍᴇ ᴛɪᴍᴇ.\n\nᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ ꜰɪʀꜱᴛ & ᴠɪᴇᴡ ʀᴇǫᴜᴇꜱᴛ.</b>", reply_markup=InlineKeyboardMarkup(btn))
+
+@Client.on_message(filters.command("send") & filters.user(ADMINS))
+async def send_msg(bot, message):
+    if message.reply_to_message:
+        target_id = message.text.split(" ", 1)[1]
+        out = "Users Saved In DB Are:\n\n"
+        success = False
+        try:
+            user = await bot.get_users(target_id)
+            users = await db.get_all_users()
+            async for usr in users:
+                out += f"{usr['id']}"
+                out += '\n'
+            if str(user.id) in str(out):
+                await message.reply_to_message.copy(int(user.id))
+                success = True
+            else:
+                success = False
+            if success:
+                await message.reply_text(f"<b>ʏᴏᴜʀ ᴍᴇꜱꜱᴀɢᴇ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ꜱᴇɴᴛ ᴛᴏ {user.mention}.</b>")
+            else:
+                await message.reply_text("<b>ᴛʜɪꜱ ᴜꜱᴇʀ ᴅɪᴅɴ'ᴛ ꜱᴛᴀʀᴛᴇᴅ ᴛʜɪꜱ ʙᴏᴛ ʏᴇᴛ !</b>")
+        except Exception as e:
+            await message.reply_text(f"<b>Error: {e}</b>")
+    else:
+        await message.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ᴀꜱ ᴀ ʀᴇᴘʟʏ ᴛᴏ ᴀɴʏ ᴍᴇꜱꜱᴀɢᴇ ᴜꜱɪɴɢ ᴛʜᴇ ᴛᴀʀɢᴇᴛ ᴄʜᴀᴛ ɪᴅ. ꜰᴏʀ ᴇɢ:  /send ᴜꜱᴇʀɪᴅ</b>")
+
+@Client.on_message(filters.command("deletefiles") & filters.user(ADMINS))
+async def deletemultiplefiles(bot, message):
+    chat_type = message.chat.type
+    if chat_type != enums.ChatType.PRIVATE:
+        return await message.reply_text(f"<b>Hey {message.from_user.mention}, This command won't work in groups. It only works on my PM !</b>")
+    else:
+        pass
+    try:
+        keyword = message.text.split(" ", 1)[1]
+    except:
+        return await message.reply_text(f"<b>Hey {message.from_user.mention}, Give me a keyword along with the command to delete files.</b>")
+    k = await bot.send_message(chat_id=message.chat.id, text=f"<b>Fetching Files for your query {keyword} on DB... Please wait...</b>")
+    files, total = await get_bad_files(keyword)
+    total = len(files)
+    if total == 0:
+        await k.edit_text(f"<b>No files found for your query {keyword} !</b>")
+        await asyncio.sleep(DELETE_TIME)
+        await k.delete()
+        return
+    await k.delete()
+    btn = [[
+       InlineKeyboardButton("⚠️ Yes, Continue ! ⚠️", callback_data=f"killfilesdq#{keyword}")
+       ],[
+       InlineKeyboardButton("❌ No, Abort operation ! ❌", callback_data="close_data")
+    ]]
+    await message.reply_text(
+        text=f"<b>Found {total} files for your query {keyword} !\n\nDo you want to delete?</b>",
+        reply_markup=InlineKeyboardMarkup(btn),
+        parse_mode=enums.ParseMode.HTML
+    )
+
+
+@Client.on_callback_query(filters.regex("topsearch"))
+async def topsearch_callback(client, callback_query):
+    def is_alphanumeric(string):
+        return bool(re.match('^[a-zA-Z0-9 ]*$', string))
+
+    limit = 20
+    top_messages = await mdb.get_top_messages(limit)
+    seen_messages = set()
+    truncated_messages = []
+    for msg in top_messages:
+        msg_lower = msg.lower()
+        if msg_lower not in seen_messages and is_alphanumeric(msg):
+            seen_messages.add(msg_lower)
+            if len(msg) > 35:
+                truncated_messages.append(msg[:32] + "...")
+            else:
+                truncated_messages.append(msg)
+    keyboard = [truncated_messages[i:i+2] for i in range(0, len(truncated_messages), 2)]
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard,
+        one_time_keyboard=True,
+        resize_keyboard=True,
+        placeholder="Most searches of the day"
+    )
+    await callback_query.message.reply_text(
+        "<b>Tᴏᴘ Sᴇᴀʀᴄʜᴇs Oғ Tʜᴇ Dᴀʏ 👇</b>",
+        reply_markup=reply_markup
+    )
+    await callback_query.answer()
+
+@Client.on_message(filters.command('top_search'))
+async def top(_, message):
+    def is_alphanumeric(string):
+        return bool(re.match('^[a-zA-Z0-9 ]*$', string))
+    try:
+        limit = int(message.command[1])
+    except (IndexError, ValueError):
+        limit = 20
+    top_messages = await mdb.get_top_messages(limit)
+    seen_messages = set()
+    truncated_messages = []
+    for msg in top_messages:
+        msg_lower = msg.lower()
+        if msg_lower not in seen_messages and is_alphanumeric(msg):
+            seen_messages.add(msg_lower)
+            if len(msg) > 35:
+                truncated_messages.append(msg[:32] + "...")
+            else:
+                truncated_messages.append(msg)
+    keyboard = [truncated_messages[i:i+2] for i in range(0, len(truncated_messages), 2)]
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard,
+        one_time_keyboard=True,
+        resize_keyboard=True,
+        placeholder="Most searches of the day"
+    )
+    await message.reply_text(
+        "<b>Tᴏᴘ Sᴇᴀʀᴄʜᴇs Oғ Tʜᴇ Dᴀʏ 👇</b>",
+        reply_markup=reply_markup
+    )
+
+@Client.on_message(filters.command('trendlist'))
+async def trendlist(client, message):
+    def is_alphanumeric(string):
+        return bool(re.match('^[a-zA-Z0-9 ]*$', string))
+    limit = 31
+    if len(message.command) > 1:
+        try:
+            limit = int(message.command[1])
+        except ValueError:
+            await message.reply_text(
+                "Invalid number format.\nPlease provide a valid number after the /trendlist command."
+            )
+            return
+    try:
+        top_messages = await mdb.get_top_messages(limit)
+    except Exception as e:
+        await message.reply_text(f"Error retrieving messages: {str(e)}")
+        return
+
+    if not top_messages:
+        await message.reply_text("No top messages found.")
+        return
+    seen_messages = set()
+    truncated_messages = []
+
+    for msg in top_messages:
+        msg_lower = msg.lower()
+        if msg_lower not in seen_messages and is_alphanumeric(msg):
+            seen_messages.add(msg_lower)
+            truncated_messages.append(msg[:32] + '...' if len(msg) > 35 else msg)
+
+    if not truncated_messages:
+        await message.reply_text("No valid top messages found.")
+        return
+    formatted_list = "\n".join([f"{i+1}. <b>{msg}</b>" for i, msg in enumerate(truncated_messages)])
+    additional_message = (
+        "⚡️ 𝑨𝒍𝒍 𝒕𝒉𝒆 𝒓𝒆𝒔𝒖𝒍𝒕𝒔 𝒂𝒃𝒐𝒗𝒆 𝒄𝒐𝒎𝒆 𝒇𝒓𝒐𝒎 𝒘𝒉𝒂𝒕 𝒖𝒔𝒆𝒓𝒔 𝒉𝒂𝒗𝒆 𝒔𝒆𝒂𝒓𝒄𝒉𝒆𝒅 𝒇𝒐𝒓. "
+        "𝑻𝒉𝒆𝒚'𝒓𝒆 𝒔𝒉𝒐𝒘𝒏 𝒕𝒐 𝒚𝒐𝒖 𝒆𝒙𝒂𝒄𝒕𝒍𝒚 𝒂𝒔 𝒕𝒉𝒆𝒚 𝒘𝒆𝒓𝒆 𝒔𝒆𝒂𝒓𝒄𝒉𝒆𝒅, "
+        "𝒘𝒊𝒕𝒉𝒐𝒖𝒕 𝒂𝒏𝒚 𝒄𝒉𝒂𝒏𝒈𝒆𝒔 𝒃𝒚 𝒕𝒉𝒆 𝒐𝒘𝒏𝒆𝒓."
+    )
+    formatted_list += f"\n\n{additional_message}"
+    reply_text = f"<b>Top {len(truncated_messages)} Tʀᴀɴᴅɪɴɢ ᴏғ ᴛʜᴇ ᴅᴀʏ 👇:</b>\n\n{formatted_list}"
+    await message.reply_text(reply_text)
+
+@Client.on_message(filters.private & filters.command("pm_search") & filters.user(ADMINS))
+async def set_pm_search(client, message):
+    bot_id = client.me.id
+    try:
+        option = message.text.split(" ", 1)[1].strip().lower()
+        enable_status = option in ['on', 'true']
+    except (IndexError, ValueError):
+        await message.reply_text("<b>💔 Invalid option. Please send 'on' or 'off' after the command..</b>")
+        return
+    try:
+        await db.update_pm_search_status(bot_id, enable_status)
+        response_text = (
+            "<b> ᴘᴍ ꜱᴇᴀʀᴄʜ ᴇɴᴀʙʟᴇᴅ ✅</b>" if enable_status
+            else "<b> ᴘᴍ ꜱᴇᴀʀᴄʜ ᴅɪꜱᴀʙʟᴇᴅ ❌</b>"
+        )
+        await message.reply_text(response_text)
+    except Exception as e:
+        logger.error(f"Error in set_pm_search: {e}")
+        await message.reply_text(f"<b>❗ An error occurred: {e}</b>")
+
+@Client.on_message(filters.private & filters.command("movie_update") & filters.user(ADMINS))
+async def set_movie_update_notification(client, message):
+    bot_id = client.me.id
+    try:
+        option = message.text.split(" ", 1)[1].strip().lower()
+        enable_status = option in ['on', 'true']
+    except (IndexError, ValueError):
+        await message.reply_text("<b>💔 Invalid option. Please send 'on' or 'off' after the command.</b>")
+        return
+    try:
+        await db.update_movie_update_status(bot_id, enable_status)
+        response_text = (
+            "<b>ᴍᴏᴠɪᴇ ᴜᴘᴅᴀᴛᴇ ɴᴏᴛɪꜰɪᴄᴀᴛɪᴏɴ ᴇɴᴀʙʟᴇᴅ ✅</b>" if enable_status
+            else "<b>ᴍᴏᴠɪᴇ ᴜᴘᴅᴀᴛᴇ ɴᴏᴛɪꜰɪᴄᴀᴛɪᴏɴ ᴅɪꜱᴀʙʟᴇᴅ ❌</b>"
+        )
+        await message.reply_text(response_text)
+    except Exception as e:
+        logger.error(f"Error in set_movie_update_notification: {e}")
+        await message.reply_text(f"<b>❗ An error occurred: {e}</b>")
+
+@Client.on_message(filters.command("restart") & filters.user(ADMINS))
+async def stop_button(bot, message):
+    msg = await bot.send_message(text="<b><i>ʙᴏᴛ ɪꜱ ʀᴇꜱᴛᴀʀᴛɪɴɢ</i></b>", chat_id=message.chat.id)
+    await asyncio.sleep(3)
+    await msg.edit("<b><i><u>ʙᴏᴛ ɪꜱ ʀᴇꜱᴛᴀʀᴛᴇᴅ</u> ✅</i></b>")
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+@Client.on_message(filters.command("del_msg") & filters.user(ADMINS))
+async def del_msg(client, message):
+    confirm_markup = InlineKeyboardMarkup([[
+        InlineKeyboardButton("Yes", callback_data="confirm_del_yes"),
+        InlineKeyboardButton("No", callback_data="confirm_del_no")
+    ]])
+    sent_message = await message.reply_text(
+        "⚠️ Aʀᴇ ʏᴏᴜ sᴜʀᴇ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴄʟᴇᴀʀ ᴛʜᴇ ᴜᴘᴅᴀᴛᴇs ᴄʜᴀɴɴᴇʟ ʟɪsᴛ ?\n\n ᴅᴏ ʏᴏᴜ ꜱᴛɪʟʟ ᴡᴀɴᴛ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ?",
+        reply_markup=confirm_markup
+    )
+    await asyncio.sleep(60)
+    try:
+        await sent_message.delete()
+    except Exception as e:
+        print(f"Error deleting the message: {e}")
+
+@Client.on_callback_query(filters.regex('^confirm_del_'))
+async def confirmation_handler(client, callback_query):
+    action = callback_query.data.split("_")[-1]
+    if action == "yes":
+        await db.delete_all_msg()
+        await callback_query.message.edit_text('🧹 ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ ʟɪsᴛ ʜᴀs ʙᴇᴇɴ ᴄʟᴇᴀʀᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ ✅')
+    elif action == "no":
+        await callback_query.message.delete()
+    await callback_query.answer()
+
+@Client.on_message(filters.command('set_caption'))
+async def save_caption(client, message):
+    grp_id = message.chat.id
+    title = message.chat.title
+    invite_link = await client.export_chat_invite_link(grp_id)
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
+    try:
+        caption = message.text.split(" ", 1)[1]
+    except:
+        return await message.reply_text("<code>ɢɪᴠᴇ ᴍᴇ ᴀ ᴄᴀᴘᴛɪᴏɴ ᴀʟᴏɴɢ ᴡɪᴛʜ ɪᴛ.\n\nᴇxᴀᴍᴘʟᴇ -\n\nꜰᴏʀ ꜰɪʟᴇ ɴᴀᴍᴇ ꜱᴇɴᴅ <code>{file_name}</code>\nꜰᴏʀ ꜰɪʟᴇ ꜱɪᴢᴇ ꜱᴇɴᴅ <code>{file_size}</code>\n\n<code>/set_caption {file_name}</code></code>")
+    await save_group_settings(grp_id, 'caption', caption)
+    await message.reply_text(f"ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴄʜᴀɴɢᴇᴅ ᴄᴀᴘᴛɪᴏɴ ꜰᴏʀ {title}\n\nᴄᴀᴘᴛɪᴏɴ - {caption}", disable_web_page_preview=True)
+    await client.send_message(LOG_API_CHANNEL, f"#Set_Caption\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ: {grp_id}\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
+
+
+@Client.on_message(filters.command(["set_tutorial", "set_tutorial_2", "set_tutorial_3"]))
+async def set_tutorial(client, message: Message):
+    grp_id = message.chat.id
+    title = message.chat.title
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text(
+            f"<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...\n\nGroup Name: {title}\nGroup ID: {grp_id}</b>"
+        )
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+
+    try:
+        tutorial_link = message.text.split(" ", 1)[1]
+    except IndexError:
+        return await message.reply_text(
+            f"<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ !!\n\nᴜꜱᴇ ʟɪᴋᴇ ᴛʜɪꜱ -</b>\n\n"
+            f"<code>/{message.command[0]} https://t.me/dreamxbotz</code>"
+        )
+    if message.command[0] == "set_tutorial":
+        tutorial_key = "tutorial"
+    else:
+        tutorial_key = f"tutorial_{message.command[0].split('_', 2)[2]}"
+
+    await save_group_settings(grp_id, tutorial_key, tutorial_link)
+    invite_link = await client.export_chat_invite_link(grp_id)
+    await message.reply_text(
+        f"<b>ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴄʜᴀɴɢᴇᴅ {tutorial_key.replace('_', ' ').title()} ꜰᴏʀ {title}</b>\n\n"
+        f"ʟɪɴᴋ - {tutorial_link}",
+        disable_web_page_preview=True
+    )
+    await client.send_message(
+        LOG_API_CHANNEL,
+        f"#Set_{tutorial_key.title()}_Video\n\n"
+        f"ɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n"
+        f"ɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n"
+        f"ɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n"
+        f"ᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.mention()}"
+    )
+
+
+async def handle_shortner_command(c, m, shortner_key, api_key, log_prefix, fallback_url, fallback_api):
+    grp_id = m.chat.id
+    if not await is_check_admin(c, grp_id, m.from_user.id):
+        return await m.reply_text(script.NT_ADMIN_ALRT_TXT)
+    if len(m.command) != 3:
+        return await m.reply(
+            f"<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ -\n\n`/{m.command[0]} omegalinks.in your_api_key_here`</b>"
+        )
+    sts = await m.reply("<b>♻️ ᴄʜᴇᴄᴋɪɴɢ...</b>")
+    await asyncio.sleep(1.2)
+    await sts.delete()
+    if m.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await m.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
+    try:
+        URL = m.command[1]
+        API = m.command[2]
+        await save_group_settings(grp_id, shortner_key, URL)
+        await save_group_settings(grp_id, api_key, API)
+        await m.reply_text(f"<b><u>✅ sʜᴏʀᴛɴᴇʀ ᴀᴅᴅᴇᴅ</u>\n\nꜱɪᴛᴇ - `{URL}`\nᴀᴘɪ - `{API}`</b>")
+        user_id = m.from_user.id
+        user_info = f"@{m.from_user.username}" if m.from_user.username else f"{m.from_user.mention}"
+        link = (await c.get_chat(m.chat.id)).invite_link
+        grp_link = f"[{m.chat.title}]({link})"
+        log_message = (
+            f"#{log_prefix}\n\nɴᴀᴍᴇ - {user_info}\n\nɪᴅ - `{user_id}`"
+            f"\n\nꜱɪᴛᴇ - {URL}\n\nᴀᴘɪ - `{API}`"
+            f"\n\nɢʀᴏᴜᴘ - {grp_link}\nɢʀᴏᴜᴘ ɪᴅ - `{grp_id}`"
+        )
+        await c.send_message(LOG_API_CHANNEL, log_message, disable_web_page_preview=True)
+    except Exception as e:
+        await save_group_settings(grp_id, shortner_key, fallback_url)
+        await save_group_settings(grp_id, api_key, fallback_api)
+        await m.reply_text(
+            f"<b><u>💢 ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ!</u>\n\n"
+            f"ᴅᴇꜰᴀᴜʟᴛ ꜱʜᴏʀᴛɴᴇʀ ᴀᴘᴘʟɪᴇᴅ\n"
+            f"ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ᴄʜᴀɴɢᴇ ᴛʀʏ ᴀ ᴠᴀʟɪᴅ ꜱɪᴛᴇ ᴀɴᴅ ᴀᴘɪ ᴋᴇʏ.\n\n"
+            f"ʟɪᴋᴇ:\n\n`/{m.command[0]} mdiskshortner.link your_api_key_here`\n\n"
+            f"💔 ᴇʀʀᴏʀ - <code>{e}</code></b>"
+        )
+
+@Client.on_message(filters.command('set_shortner'))
+async def set_shortner(c, m):
+    await handle_shortner_command(c, m, 'shortner', 'api', 'New_Shortner_Set_For_1st_Verify', SHORTENER_WEBSITE, SHORTENER_API)
+
+@Client.on_message(filters.command('set_shortner_2'))
+async def set_shortner_2(c, m):
+    await handle_shortner_command(c, m, 'shortner_two', 'api_two', 'New_Shortner_Set_For_2nd_Verify', SHORTENER_WEBSITE2, SHORTENER_API2)
+
+@Client.on_message(filters.command('set_shortner_3'))
+async def set_shortner_3(c, m):
+    await handle_shortner_command(c, m, 'shortner_three', 'api_three', 'New_Shortner_Set_For_3rd_Verify', SHORTENER_WEBSITE3, SHORTENER_API3)
+
+@Client.on_message(filters.command('set_log_channel'))
+async def set_log(client, message):
+    grp_id = message.chat.id
+    title = message.chat.title
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+    if len(message.text.split()) == 1:
+        await message.reply("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ ᴛʜɪꜱ - \n\n`/set_log_channel -100******`</b>")
+        return
+    sts = await message.reply("<b>♻️ ᴄʜᴇᴄᴋɪɴɢ...</b>")
+    await asyncio.sleep(1.2)
+    await sts.delete()
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
+    try:
+        log = int(message.text.split(" ", 1)[1])
+    except IndexError:
+        return await message.reply_text("<b><u>ɪɴᴠᴀɪʟᴅ ꜰᴏʀᴍᴀᴛ!!</u>\n\nᴜsᴇ ʟɪᴋᴇ ᴛʜɪs - `/set_log_channel -100xxxxxxxx`</b>")
+    except ValueError:
+        return await message.reply_text('<b>ᴍᴀᴋᴇ sᴜʀᴇ ɪᴅ ɪs ɪɴᴛᴇɢᴇʀ...</b>')
+    try:
+        t = await client.send_message(chat_id=log, text="<b>ʜᴇʏ ᴡʜᴀᴛ's ᴜᴘ!!</b>")
+        await asyncio.sleep(3)
+        await t.delete()
+    except Exception as e:
+        return await message.reply_text(f'<b><u>😐 ᴍᴀᴋᴇ sᴜʀᴇ ᴛʜɪs ʙᴏᴛ ᴀᴅᴍɪɴ ɪɴ ᴛʜᴀᴛ ᴄʜᴀɴɴᴇʟ...</u>\n\n💔 ᴇʀʀᴏʀ - <code>{e}</code></b>')
+    await save_group_settings(grp_id, 'log', log)
+    await message.reply_text(f"<b>✅ sᴜᴄᴄᴇssꜰᴜʟʟʏ sᴇᴛ ʏᴏᴜʀ ʟᴏɢ ᴄʜᴀɴɴᴇʟ ꜰᴏʀ {title}\n\nɪᴅ - `{log}`</b>", disable_web_page_preview=True)
+    user_id = message.from_user.id
+    user_info = f"@{message.from_user.username}" if message.from_user.username else f"{message.from_user.mention}"
+    link = (await client.get_chat(message.chat.id)).invite_link
+    grp_link = f"[{message.chat.title}]({link})"
+    log_message = f"#New_Log_Channel_Set\n\nɴᴀᴍᴇ - {user_info}\n\nɪᴅ - `{user_id}`\n\nʟᴏɢ ᴄʜᴀɴɴᴇʟ ɪᴅ - `{log}`\nɢʀᴏᴜᴘ ʟɪɴᴋ - `{grp_link}`\n\nɢʀᴏᴜᴘ ɪᴅ : `{grp_id}`"
+    await client.send_message(LOG_API_CHANNEL, log_message, disable_web_page_preview=True) 
+
+
+@Client.on_message(filters.command('set_time'))
+async def set_time(client, message):
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")       
+    grp_id = message.chat.id
+    title = message.chat.title
+    invite_link = await client.export_chat_invite_link(grp_id)
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+    try:
+        time = int(message.text.split(" ", 1)[1])
+    except:
+        return await message.reply_text("<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ\n\nᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ ᴛʜɪꜱ - <code>/set_time 600</code> [ ᴛɪᴍᴇ ᴍᴜꜱᴛ ʙᴇ ɪɴ ꜱᴇᴄᴏɴᴅꜱ ]</b>")   
+    await save_group_settings(grp_id, 'verify_time', time)
+    await message.reply_text(f"<b>✅️ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ꜱᴇᴛ 2ɴᴅ ᴠᴇʀɪꜰʏ ᴛɪᴍᴇ ꜰᴏʀ {title}\n\nᴛɪᴍᴇ - <code>{time}</code></b>")
+    await client.send_message(LOG_API_CHANNEL, f"#Set_2nd_Verify_Time\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
+
+@Client.on_message(filters.command('set_time_2'))
+async def set_time_2(client, message):
+    chat_type = message.chat.type
+    if chat_type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")       
+    grp_id = message.chat.id
+    title = message.chat.title
+    invite_link = await client.export_chat_invite_link(grp_id)
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+    try:
+        time = int(message.text.split(" ", 1)[1])
+    except:
+        return await message.reply_text("<b>ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ\n\nᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ ʟɪᴋᴇ ᴛʜɪꜱ - <code>/set_time 3600</code> [ ᴛɪᴍᴇ ᴍᴜꜱᴛ ʙᴇ ɪɴ ꜱᴇᴄᴏɴᴅꜱ ]</b>")   
+    await save_group_settings(grp_id, 'third_verify_time', time)
+    await message.reply_text(f"<b>✅️ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ꜱᴇᴛ 3ʀᴅ ᴠᴇʀɪꜰʏ ᴛɪᴍᴇ ꜰᴏʀ {title}\n\nᴛɪᴍᴇ - <code>{time}</code></b>")
+    await client.send_message(LOG_API_CHANNEL, f"#Set_3rd_Verify_Time\n\nɢʀᴏᴜᴘ ɴᴀᴍᴇ : {title}\n\nɢʀᴏᴜᴘ ɪᴅ : {grp_id}\n\nɪɴᴠɪᴛᴇ ʟɪɴᴋ : {invite_link}\n\nᴜᴘᴅᴀᴛᴇᴅ ʙʏ : {message.from_user.username}")
+
+
+@Client.on_message(filters.command('details'))
+async def all_settings(client, message):
+    if message.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+        return await message.reply_text("<b>ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ɪɴ ɢʀᴏᴜᴘ...</b>")
+    grp_id = message.chat.id
+    title = message.chat.title
+    if not await is_check_admin(client, grp_id, message.from_user.id):
+        return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+    try:
+        settings = await get_settings(grp_id)
+    except Exception as e:
+        return await message.reply_text(f"<b>⚠️ ᴇʀʀᴏʀ ꜰᴇᴛᴄʜɪɴɢ ꜱᴇᴛᴛɪɴɢꜱ:</b>\n<code>{e}</code>")
+    text = generate_settings_text(settings, title)
+    btn = [
+        [InlineKeyboardButton("♻️ ʀᴇꜱᴇᴛ ꜱᴇᴛᴛɪɴɢꜱ", callback_data=f"reset_group_{grp_id}")],
+        [InlineKeyboardButton("🚫 ᴄʟᴏꜱᴇ", callback_data="close_data")]
+    ]
+    dlt = await message.reply_text(text, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True)
+    await asyncio.sleep(300)
+    await dlt.delete()
+
+@Client.on_callback_query(filters.regex(r"^reset_group_(\-\d+)$"))
+async def reset_group_callback(client, callback_query):
+    grp_id = int(callback_query.matches[0].group(1))
+    user_id = callback_query.from_user.id
+    if not await is_check_admin(client, grp_id, user_id):
+        return await callback_query.answer(script.NT_ADMIN_ALRT_TXT, show_alert=True)
+    await callback_query.answer("♻️ ʀᴇꜱᴇᴛᴛɪɴɢ ꜱᴇᴛᴛɪɴɢꜱ...")
+    defaults = {
+        'shortner': SHORTENER_WEBSITE,
+        'api': SHORTENER_API,
+        'shortner_two': SHORTENER_WEBSITE2,
+        'api_two': SHORTENER_API2,
+        'shortner_three': SHORTENER_WEBSITE3,
+        'api_three': SHORTENER_API3,
+        'verify_time': TWO_VERIFY_GAP,
+        'third_verify_time': THREE_VERIFY_GAP,
+        'template': IMDB_TEMPLATE,
+        'tutorial': TUTORIAL,
+        'tutorial_2': TUTORIAL_2,
+        'tutorial_3': TUTORIAL_3,
+        'caption': CUSTOM_FILE_CAPTION,
+        'log': LOG_CHANNEL,
+        'is_verify': IS_VERIFY,
+        'fsub': AUTH_CHANNELS
+    }
+    current = await get_settings(grp_id)
+    if current == defaults:
+        return await callback_query.answer("✅ ꜱᴇᴛᴛɪɴɢꜱ ᴀʟʀᴇᴀᴅʏ ᴅᴇꜰᴀᴜʟᴛ.", show_alert=True)
+    for key, value in defaults.items():
+        await save_group_settings(grp_id, key, value)
+    updated = await get_settings(grp_id)
+    title = callback_query.message.chat.title
+    text = generate_settings_text(updated, title, reset_done=True)
+    buttons = [
+        [InlineKeyboardButton("♻️ ʀᴇꜱᴇᴛ ꜱᴇᴛᴛɪɴɢꜱ", callback_data=f"reset_group_{grp_id}")],
+        [InlineKeyboardButton("🚫 ᴄʟᴏꜱᴇ", callback_data="close_data")]
+    ]
+    await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
+
+@Client.on_message(filters.command("verify") & filters.user(ADMINS))
+async def verify(bot, message):
+    try:
+        chat_type = message.chat.type
+        if chat_type == enums.ChatType.PRIVATE:
+            return await message.reply_text("ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴡᴏʀᴋs ᴏɴʟʏ ɪɴ ɢʀᴏᴜᴘs!")
+        if chat_type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            grpid = message.chat.id
+            title = message.chat.title
+            command_text = message.text.split(' ')[1] if len(message.text.split(' ')) > 1 else None
+            if command_text == "off":
+                await save_group_settings(grpid, 'is_verify', False)
+                return await message.reply_text("✓ ᴠᴇʀɪꜰʏ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅɪsᴀʙʟᴇᴅ.")
+            elif command_text == "on":
+                await save_group_settings(grpid, 'is_verify', True)
+                return await message.reply_text("✗ ᴠᴇʀɪꜰʏ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴇɴᴀʙʟᴇᴅ.")
+            else:
+                return await message.reply_text("ʜɪ, ᴛᴏ ᴇɴᴀʙʟᴇ ᴠᴇʀɪꜰʏ, ᴜsᴇ <code>/verify on</code> ᴀɴᴅ ᴛᴏ ᴅɪsᴀʙʟᴇ ᴠᴇʀɪꜰʏ, ᴜsᴇ <code>/verify off</code>.")
+    except Exception as e:
+        print(f"Error: {e}")
+        await message.reply_text(f"Error: {e}")
+
+@Client.on_message(filters.command('set_fsub'))
+async def set_fsub(client, message):
+    try:
+        userid = message.from_user.id if message.from_user else None
+        if not userid:
+            return await message.reply("<b>You are Anonymous admin you can't use this command !</b>")
+        if message.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            return await message.reply_text("ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs")
+        grp_id = message.chat.id
+        title = message.chat.title
+        if not await is_check_admin(client, grp_id, userid):
+            return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+        args = message.text.split(maxsplit=1)
+        if len(args) < 2:
+            return await message.reply_text(
+                "ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ!\n\n"
+                "ᴄᴀɴ ᴀᴅᴅ ᴍᴜʟᴛɪᴘʟᴇ ᴄʜᴀɴɴᴇʟs sᴇᴘᴀʀᴀᴛᴇᴅ ʙʏ sᴘᴀᴄᴇs. ʟɪᴋᴇ: /sᴇᴛ_ғsᴜʙ ɪᴅ1 ɪᴅ2 ɪᴅ3\n"
+            )
+        option = args[1].strip()
+        try:
+            fsub_ids = [int(x) for x in option.split()]
+        except ValueError:
+            return await message.reply_text('ᴍᴀᴋᴇ sᴜʀᴇ ᴀʟʟ ɪᴅs ᴀʀᴇ ɪɴᴛᴇɢᴇʀs.')
+        if len(fsub_ids) > 5:
+            return await message.reply_text("ᴍᴀxɪᴍᴜᴍ 5 ᴄʜᴀɴɴᴇʟs ᴀʟʟᴏᴡᴇᴅ.")
+        channels = "ᴄʜᴀɴɴᴇʟs:\n"
+        channel_titles = []
+        for id in fsub_ids:
+            try:
+                chat = await client.get_chat(id)
+            except Exception as e:
+                return await message.reply_text(
+                    f"{id} ɪs ɪɴᴠᴀʟɪᴅ!\nᴍᴀᴋᴇ sᴜʀᴇ ᴛʜɪs ʙᴏᴛ ɪs ᴀᴅᴍɪɴ ɪɴ ᴛʜᴀᴛ ᴄʜᴀɴɴᴇʟ.\n\nError - {e}"
+                )
+            if chat.type != enums.ChatType.CHANNEL:
+                return await message.reply_text(f"{id} ɪs ɴᴏᴛ ᴀ ᴄʜᴀɴɴᴇʟ.")
+            channel_titles.append(f"{chat.title} (`{id}`)")
+            channels += f'{chat.title}\n'
+        await save_group_settings(grp_id, 'fsub', fsub_ids)
+        await message.reply_text(f"sᴜᴄᴄᴇssғᴜʟʟʏ sᴇᴛ ꜰꜱᴜʙ ᴄʜᴀɴɴᴇʟ(ꜱ) ғᴏʀ {title} ᴛᴏ\n\n{channels}")
+        mention = message.from_user.mention if message.from_user else "Unknown"
+        await client.send_message(
+            LOG_API_CHANNEL,
+            f"#Fsub_Channel_set\n\n"
+            f"ᴜꜱᴇʀ - {mention} ꜱᴇᴛ ᴛʜᴇ ꜰᴏʀᴄᴇ ᴄʜᴀɴɴᴇʟ(ꜱ) ꜰᴏʀ {title}:\n\n"
+            f"ꜰꜱᴜʙ ᴄʜᴀɴɴᴇʟ(ꜱ):\n" + '\n'.join(channel_titles)
+        )
+    except Exception as e:
+        err_text = f"⚠️ Error in set_fSub :\n{e}"
+        logger.error(err_text)
+        await client.send_message(LOG_API_CHANNEL, err_text)
+
+@Client.on_message(filters.private & filters.command("resetallgroup") & filters.user(ADMINS))
+async def reset_all_settings(client, message):
+    try:
+        reset_count = await db.dreamx_reset_settings()
+        await message.reply_text(
+            f"<b>ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴇʟᴇᴛᴇᴅ ꜱᴇᴛᴛɪɴɢꜱ ꜰᴏʀ  <code>{reset_count}</code> ɢʀᴏᴜᴘꜱ. ᴅᴇꜰᴀᴜʟᴛ ᴠᴀʟᴜᴇꜱ ᴡɪʟʟ ʙᴇ ᴜꜱᴇᴅ ✅</b>",
+            quote=True
+        )
+    except Exception as e:
+        print(f"[ERROR] reset_all_settings: {e}")
+        await message.reply_text(
+            "<b>🚫 An error occurred while resetting group settings.\nPlease try again later.</b>",
+            quote=True
+        )
+
+@Client.on_message(filters.command("trial_reset"))
+async def reset_trial(client, message):
+    user_id = message.from_user.id
+    if user_id not in ADMINS:
+        await message.reply("ʏᴏᴜ ᴅᴏɴ'ᴛ ʜᴀᴠᴇ ᴀɴʏ ᴘᴇʀᴍɪꜱꜱɪᴏɴ ᴛᴏ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
+        return
+    try:
+        if len(message.command) > 1:
+            target_user_id = int(message.command[1])
+            updated_count = await db.reset_free_trial(target_user_id)
+            message_text = f"ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ʀᴇꜱᴇᴛ ꜰʀᴇᴇ ᴛʀᴀɪʟ ꜰᴏʀ ᴜꜱᴇʀꜱ {target_user_id}." if updated_count else f"ᴜꜱᴇʀ {target_user_id} ɴᴏᴛ ꜰᴏᴜɴᴅ ᴏʀ ᴅᴏɴ'ᴛ ᴄʟᴀɪᴍ ꜰʀᴇᴇ ᴛʀᴀɪʟ ʏᴇᴛ."
+        else:
+            updated_count = await db.reset_free_trial()
+            message_text = f"ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ʀᴇꜱᴇᴛ ꜰʀᴇᴇ ᴛʀᴀɪʟ ꜰᴏʀ {updated_count} ᴜꜱᴇʀꜱ."
+        await message.reply_text(message_text)
+    except Exception as e:
+        await message.reply_text(f"An error occurred: {e}")
+        
+@Client.on_message(filters.command("smart_clean") & filters.user(ADMINS))
+async def smart_clean_duplicates(bot, message):
+    msg = await message.reply("🧹 Scanning for exact duplicates (matching Name AND Size)... Please wait.")
+    
+    # MongoDB Aggregation to find duplicates based on BOTH name and size
+    pipeline = [
+        {
+            "$group": {
+                "_id": {
+                    "file_name": "$file_name",
+                    "file_size": "$file_size"
+                },
+                "ids": {"$push": "$_id"},
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$match": {
+                "count": {"$gt": 1}
+            }
+        }
+    ]
+    
+    try:
+        # Check Primary Database
+        duplicate_groups_1 = await Media.collection.aggregate(pipeline).to_list(length=None)
+        
+        deleted_count = 0
+        
+        # Delete duplicates in Primary DB (keeping the first one)
+        for group in duplicate_groups_1:
+            ids_to_delete = group["ids"][1:]
+            result = await Media.collection.delete_many({"_id": {"$in": ids_to_delete}})
+            deleted_count += result.deleted_count
+            
+        # Check Secondary Database (if MULTIPLE_DB is active)
+        if MULTIPLE_DB:
+            duplicate_groups_2 = await Media2.collection.aggregate(pipeline).to_list(length=None)
+            for group in duplicate_groups_2:
+                ids_to_delete = group["ids"][1:]
+                result = await Media2.collection.delete_many({"_id": {"$in": ids_to_delete}})
+                deleted_count += result.deleted_count
+                
+        await msg.edit(f"✅ **Smart Cleanup Complete!**\n🗑️ Removed `{deleted_count}` exact duplicate entries.\n\n*(Books with the same name but different sizes were ignored!)*")
+        
+    except Exception as e:
+        await msg.edit(f"❌ **Error during cleanup:** `{e}`")
+        logger.error(f"Smart Clean Error: {e}")
+
+
+# ════════════════════════════════════════════
+# 🚀 AUTO INDEXER FOR DATABASE CHANNEL
+# ════════════════════════════════════════════
+
+DATABASE_CHANNEL_ID = -1003793921200 
+
+# Dummy class banayi hai taaki tumhare database ko saari info perfectly mile
+class MockMedia:
+    def __init__(self, document, message):
+        self.file_id = document.file_id
+        self.file_name = getattr(document, 'file_name', 'Unknown')
+        self.file_size = getattr(document, 'file_size', 0)
+        self.file_type = "document"
+        self.mime_type = getattr(document, 'mime_type', 'application/pdf')
+        self.caption = message.caption
+
+# group=1 lagaya hai taaki koi aur message handler isko na roke!
+@Client.on_message(filters.channel & filters.chat(DATABASE_CHANNEL_ID) & filters.document, group=1)
+async def auto_index_new_files(client, message):
+    try:
+        from database.ia_filterdb import save_file
+        
+        if not message.document:
+            return
+            
+        # File aur Message dono ko combine karke database mein bhej rahe hain
+        media_obj = MockMedia(message.document, message)
+        saved, status = await save_file(media_obj)
+        
+        if saved:
+            print(f"✅ [AUTO-INDEX SUCCESS] Indexed: {media_obj.file_name}")
+        else:
+            print(f"⚠️ [AUTO-INDEX SKIP] File already exists or ignored: {media_obj.file_name}")
+            
+    except Exception as e:
+        print(f"❌ [AUTO-INDEX ERROR]: {e}")
+
+
+# ════════════════════════════════════════════
+# 📋 COMMUNITY REQUEST BOARD SYSTEM
+# ════════════════════════════════════════════
+
+# Temporary storage for requested books
+temp.REQUESTED_BOOKS = []
+
+@Client.on_message(filters.command("need") & filters.user(ADMINS))
+async def add_book_request(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ **Format:** `/need [Book Title] by [Author]`")
+    
+    book_name = message.text.split(" ", 1)[1]
+    
+    if book_name in temp.REQUESTED_BOOKS:
+        return await message.reply_text("⚠️ This book is already in the request list!")
+        
+    # Add to the board
+    temp.REQUESTED_BOOKS.append(book_name)
+    
+    # Send confirmation to Admin
+    await message.reply_text(f"✅ **Request Added:** `{book_name}`\n\nBroadcasting to all users now...")
+    
+    # 📢 AUTO-BROADCAST TO ALL USERS 
+    users = await db.get_all_users()
+    b_msg = (
+        f"📢 **COMMUNITY REQUEST!** 📢\n\n"
+        f"Our library is currently looking for the following book:\n"
+        f"📚 **{book_name}**\n\n"
+        f"If you have the PDF/EPUB version of this book, or if you can scan a physical copy, "
+        f"please upload it directly to this bot.\n\n"
+        f"Your small contribution can be a huge help to someone in the community! ❤️"
+    )
+    
+    # Interactive Buttons for the Broadcast
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📤 How to Upload a Book", callback_data="upload_instructions")],
+        [
+            InlineKeyboardButton("📋 View All Requests", callback_data="view_requests"),
+            InlineKeyboardButton("🏆 Leaderboard", callback_data="show_leaderboard")
+        ]
+    ])
+    
+    success = 0
+    failed = 0
+    async for user in users:
+        try:
+            await client.send_message(
+                chat_id=user['id'], 
+                text=b_msg,
+                reply_markup=reply_markup
+            )
+            success += 1
+            await asyncio.sleep(0.1) # Prevents FloodWait
+        except Exception:
+            failed += 1
+            
+    await message.reply_text(f"✅ **Broadcast Complete!**\nSent to: `{success}` users.\nFailed: `{failed}`.")
+
+
+@Client.on_message(filters.command("requests"))
+async def view_request_board(client, message):
+    if not temp.REQUESTED_BOOKS:
+        return await message.reply_text("📋 **Community Request Board**\n\nOur library doesn't have any pending book requests right now. Everything is up to date! ✨")
+        
+    board_text = "📋 **COMMUNITY REQUEST BOARD** 📋\n\nOur community is looking for the following books. If you have any of these, please rename them to the required format and send them to the bot to help others!\n\n"
+    
+    for i, book in enumerate(temp.REQUESTED_BOOKS, 1):
+        board_text += f"{i}. 📚 **{book}**\n"
+        
+    board_text += "\n💡 *Hint: Make sure your file is named exactly like `Title [Language] by Author.pdf` before uploading.*"
+    
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📤 How to Upload a Book", callback_data="upload_instructions")],
+        [InlineKeyboardButton("🏆 Contributors Leaderboard", callback_data="show_leaderboard")]
+    ])
+    
+    await message.reply_text(board_text, reply_markup=reply_markup)
+
+
+@Client.on_callback_query(filters.regex("^upload_instructions$"))
+async def upload_instructions_cb(client, query):
+    text = (
+        "📤 **How to Upload a Book:**\n\n"
+        "1. Rename your PDF/EPUB file strictly in this format:\n"
+        "   `[Book Title] [Language] by [Author].pdf`\n"
+        "   *Example:* `Atomic Habits [English] by James Clear.pdf`\n\n"
+        "2. Send that renamed file directly to this bot.\n\n"
+        "3. If the format is correct, the bot will add it to the library, and you will earn contributor points! 🏆"
+    )
+    await query.message.reply_text(text)
+    await query.answer()
+
+@Client.on_callback_query(filters.regex("^show_leaderboard$"))
+async def show_leaderboard_cb(client, query):
+    from database.users_chats_db import db
+    top_users = await db.get_top_contributors()
+    
+    if not top_users:
+        return await query.answer("No contributors yet! Be the first to upload a book! 🏆", show_alert=True)
+    
+    text = "🏆 **TOP CONTRIBUTORS LEADERBOARD** 🏆\n\n"
+    text += "These are the heroes keeping our library alive:\n\n"
+    
+    medals = ["🥇", "🥈", "🥉"]
+    for i, user in enumerate(top_users):
+        rank = medals[i] if i < 3 else f"**{i+1}.**"
+        name = user.get('name', 'Unknown Reader')
+        points = user.get('contributions', 0)
+        
+        text += f"{rank} **{name}** - `{points} Books`\n"
+        
+    text += "\n💡 *Upload requested books to get your name on this board!*"
+    
+    # Back button to return to requests or main menu
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Back to Requests", callback_data="view_requests")]
+    ])
+    
+    # Agar same message edit ho raha hai
+    if query.message.text:
+        await query.message.edit_text(text, reply_markup=reply_markup)
+    else:
+        await query.message.reply_text(text, reply_markup=reply_markup)
+
+@Client.on_callback_query(filters.regex("^view_requests$"))
+async def view_requests_cb(client, query):
+    from utils import temp 
+    
+    if not temp.REQUESTED_BOOKS:
+        await query.answer("No pending requests right now! Everything is up to date ✨", show_alert=True)
+        return
+
+    board_text = "📋 **COMMUNITY REQUEST BOARD** 📋\n\nOur community is looking for the following books:\n\n"
+    for i, book in enumerate(temp.REQUESTED_BOOKS, 1):
+        board_text += f"{i}. 📚 **{book}**\n"
+    
+    board_text += "\n💡 *Hint: Rename your file properly before sending.*"
+    
+    await query.message.reply_text(board_text)
+    await query.answer()
+
+
+# ════════════════════════════════════════════
+# 📤 USER UPLOAD & FORMAT CHECKER SYSTEM
+# ════════════════════════════════════════════
+import re
+
+DATABASE_CHANNEL_ID = -1003793921200 # Tumhara Bookhubz Database Channel
+
+@Client.on_message(filters.private & filters.document)
+async def handle_user_uploads(client, message):
+    # Sirf books (pdf, epub, mobi, azw3) allow karenge
+    file_name = message.document.file_name
+    if not file_name or not file_name.lower().endswith(('.pdf', '.epub', '.mobi', '.azw3')):
+        return 
+
+    # 🛑 ULTRA-FLEXIBLE FORMAT CHECK 
+    # Language is optional. Accepts underscores, spaces, brackets, or no brackets.
+    match = re.match(r"^(.+?)(?:[ _]*[\[\(](.+?)[\]\)])?[ _]*by[ _]*(.+?)\.(pdf|epub|mobi|azw3)$", file_name, re.IGNORECASE)
+    
+    if not match:
+        return await message.reply_text(
+            "⚠️ **Invalid File Name Format!**\n\n"
+            "Just make sure the word **'by'** is between the Book Name and the Author.\n\n"
+            "✅ **Accepted Formats:**\n"
+            "• `Book Name by Author.pdf`\n"
+            "• `Book Name [English] by Author.pdf`\n"
+            "• `Book_Name_Vol_1_by_Author.epub`\n\n"
+            "Rename the file and send it again! 📤"
+        )
+    
+    # Clean up underscores and spaces automatically for the database
+    title = match.group(1).replace("_", " ").strip()
+    lang = match.group(2).replace("_", " ").strip() if match.group(2) else "English" # Default to English
+    author = match.group(3).replace("_", " ").strip()
+    ext = match.group(4).lower()
+    status_msg = await message.reply_text("⏳ Processing your upload...")
+    
+    try:
+        # Dummy class banayi hai taaki database perfectly file_id aur caption read kar sake
+        class MockMedia:
+            def __init__(self, document, msg):
+                self.file_id = document.file_id
+                self.file_name = getattr(document, 'file_name', 'Unknown')
+                self.file_size = getattr(document, 'file_size', 0)
+                self.file_type = "document"
+                self.mime_type = getattr(document, 'mime_type', 'application/pdf')
+                self.caption = msg.caption
+
+        # 1. Forward to your Database Channel (Send as fresh cached media)
+        sent_msg = await client.send_cached_media(
+            chat_id=DATABASE_CHANNEL_ID,
+            file_id=message.document.file_id,
+            caption=f"📚 **{title}**\n👤 {author}\n🌐 {lang}\n\n📤 Uploaded by: {message.from_user.mention}"
+        )
+        
+        # 2. Save/Index to MongoDB (FIXED)
+        from database.ia_filterdb import save_file
+        media_obj = MockMedia(message.document, sent_msg)
+        await save_file(media_obj)
+        
+        # 3. Check Request Board and Auto-Clear
+        cleared = False
+        from utils import temp
+        for req_book in list(temp.REQUESTED_BOOKS):
+            if req_book.lower() in title.lower() or title.lower() in req_book.lower():
+                temp.REQUESTED_BOOKS.remove(req_book)
+                cleared = True
+                break
+        
+        # 4. Leaderboard Logic Activated! 🏆
+        from database.users_chats_db import db
+        await db.add_contributor_point(message.from_user.id, message.from_user.first_name)
+
+        # 5. Success Message
+        success_text = f"🎉 **Upload Successful!**\n\nThank you for uploading **{title}**! It has been indexed in our library."
+        if cleared:
+            success_text += "\n\n🌟 **BINGO!** You just fulfilled a Community Request! Your fellow readers are going to love you!"
+            
+        await status_msg.edit_text(success_text)
+        
+    except Exception as e:
+        print(f"Upload Error: {e}")
+        await status_msg.edit_text(f"❌ An error occurred while adding the book to the database.\n\nError: `{e}`")
+
+# ════════════════════════════════════════════
+# 📋 MANUAL REQUEST BOARD UPDATER (ADMIN ONLY)
+# ════════════════════════════════════════════
+
+@Client.on_message(filters.command("addreq") & filters.user(ADMINS))
+async def manual_add_req(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ **Format:** `/addreq [Book Name]`")
+    
+    book_name = message.text.split(" ", 1)[1]
+    from utils import temp
+    if book_name not in temp.REQUESTED_BOOKS:
+        temp.REQUESTED_BOOKS.append(book_name)
+        await message.reply_text(f"✅ **Added to Board:** `{book_name}`")
+    else:
+        await message.reply_text("⚠️ This book is already on the board!")
+
+@Client.on_message(filters.command("delreq") & filters.user(ADMINS))
+async def manual_del_req(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ **Format:** `/delreq [Book Name]`")
+    
+    book_name = message.text.split(" ", 1)[1]
+    from utils import temp
+    if book_name in temp.REQUESTED_BOOKS:
+        temp.REQUESTED_BOOKS.remove(book_name)
+        await message.reply_text(f"🗑️ **Removed from Board:** `{book_name}`")
+    else:
+        await message.reply_text("⚠️ This book is not on the board!")
+
+
+# ════════════════════════════════════════════
+# 🚨 FILE REPORTING SYSTEM
+# ════════════════════════════════════════════
+
+@Client.on_callback_query(filters.regex(r"^report#"))
+async def report_file_cb(client, query):
+    _, file_id = query.data.split("#")
+    
+    # Report Options
+    btn = [
+        [InlineKeyboardButton("🇺🇸 Not in English", callback_data=f"repreason#not_eng#{file_id}")],
+        [InlineKeyboardButton("⚠️ Fake Book / Corrupted", callback_data=f"repreason#fake#{file_id}")],
+        [InlineKeyboardButton("✍️ Type Another Reason", callback_data=f"repreason#other#{file_id}")],
+        [InlineKeyboardButton("🔙 Cancel", callback_data="close_data")]
+    ]
+    
+    await query.message.reply_text(
+        "🚨 **Report this file:**\nPlease select the exact reason why this file is bad:", 
+        reply_markup=InlineKeyboardMarkup(btn), 
+        quote=True
+    )
+    await query.answer()
+
+@Client.on_callback_query(filters.regex(r"^repreason#"))
+async def report_reason_cb(client, query):
+    _, reason, file_id = query.data.split("#")
+    user = query.from_user
+    
+    if reason == "not_eng":
+        reason_text = "Not in English"
+    elif reason == "fake":
+        reason_text = "Fake Book / Corrupted File"
+    elif reason == "other":
+        await query.message.edit_text(
+            "✍️ **Custom Report:**\n\n"
+            "Please **reply** directly to the bad file with this command:\n"
+            "`/report [Your Reason]`\n\n"
+            "*Example:* `/report pages are missing in chapter 3`"
+        )
+        return
+        
+    # 🌟 FETCH FILE NAME FROM DATABASE
+    from database.ia_filterdb import get_file_details
+    files_ = await get_file_details(file_id)
+    file_name = files_[0].file_name if files_ else "Unknown File"
+        
+    from info import LOG_CHANNEL
+    log_msg = (
+        f"🚨 **FILE REPORTED** 🚨\n\n"
+        f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📚 **Book Name:** `{file_name}`\n"
+        f"📄 **File ID:** `{file_id}`\n"
+        f"⚠️ **Reason:** {reason_text}\n\n"
+        f"🔍 *Check this file below and use /delete if it is actually fake.*"
+    )
+    
+    # 🌟 SEND ACTUAL FILE TO LOG CHANNEL FOR QUICK CHECK
+    try:
+        await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id, caption=log_msg)
+    except Exception:
+        # Fallback just in case file forwarding fails
+        await client.send_message(LOG_CHANNEL, log_msg)
+        
+    await query.message.edit_text("✅ **Thank you!** Your report has been sent to the admins. We will review and delete this file if necessary.")
+
+# Custom typed reason command
+@Client.on_message(filters.command("report") & filters.private)
+async def custom_report_cmd(client, message):
+    if not message.reply_to_message or not message.reply_to_message.document:
+        return await message.reply_text("⚠️ Please **reply** directly to the file/book you want to report with `/report [reason]`.")
+    
+    if len(message.command) < 2:
+        return await message.reply_text("⚠️ Please type a reason.\n*Example:* `/report fake pages`")
+        
+    reason_text = message.text.split(" ", 1)[1]
+    file_id = message.reply_to_message.document.file_id
+    file_name = message.reply_to_message.document.file_name or "Unknown File"
+    user = message.from_user
+    
+    from info import LOG_CHANNEL
+    log_msg = (
+        f"🚨 **FILE REPORTED (CUSTOM REASON)** 🚨\n\n"
+        f"👤 **Reported By:** {user.mention} (`{user.id}`)\n"
+        f"📚 **Book Name:** `{file_name}`\n"
+        f"📄 **File ID:** `{file_id}`\n"
+        f"⚠️ **Reason:** {reason_text}\n\n"
+        f"🔍 *Check this file below and use /delete if it is actually fake.*"
+    )
+    
+    try:
+        await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id, caption=log_msg)
+    except Exception:
+        await client.send_message(LOG_CHANNEL, log_msg)
+        
+    await message.reply_text("✅ **Thank you!** Your custom report has been sent to the admins.")
