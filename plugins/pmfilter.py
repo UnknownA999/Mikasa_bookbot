@@ -2040,19 +2040,20 @@ async def auto_filter(client, msg, spoll=False):
                 if book_count > 0:
                     category_btn.append(InlineKeyboardButton(f"📚 Bᴏᴏᴋs ({book_count})", callback_data=f"cat#books#{key}"))
                 
-                # Check if we need to insert the Format/Lang buttons BEFORE the Category buttons 
-                # (So Category is always on top)
+                # Appending the row cleanly
                 btn.insert(0, [
                     InlineKeyboardButton(f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
                     InlineKeyboardButton("Lᴀɴɢᴜᴀɢᴇ", callback_data=f"languages#{key}"),
                     InlineKeyboardButton("Vᴏʟᴜᴍᴇ", callback_data=f"seasons#{key}")
                 ])
-                btn.insert(0, category_btn)
+                if category_btn: # Important check so we don't pass an empty row
+                    btn.insert(0, category_btn)
                 btn.insert(0, [
                     InlineKeyboardButton("ʀᴇᴍᴏᴠᴇ ᴀᴅs", url=f"https://t.me/{temp.U_NAME}?start=premium"),
                     InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{message.chat.id}_{key}")
                 ])
             else:
+
                 # If not initial search, just insert standard buttons
                 btn.insert(0, [
                     InlineKeyboardButton(f'Fᴏʀᴍᴀᴛ', callback_data=f"qualities#{key}"),
