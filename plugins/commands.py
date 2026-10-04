@@ -335,8 +335,29 @@ async def start(client, message):
             logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
         # ---> 16-HOUR VERIFICATION SYSTEM <---
-
+        if settings.get('is_verify', IS_VERIFY) and not await db.has_premium_access(message.from_user.id):
+            # Checking verification status from DB
+            is_verified = await db.check_verify_status(message.from_user.id)
+            if not is_verified:
+                verify_token = str(random.randint(100000, 999999))
+                v_link = f"https://t.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_token}_{data}"
+                
+                # Fetching Shortlink based on 1, 2 or 3 link setup
+                short_link = await get_shortlink(v_link, grp_id)
+                
+                v_btn = [
+                    [InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ", url=short_link)],
+                    [InlineKeyboardButton("❓ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ & ᴅᴏᴡɴʟᴏᴀᴅ", url=settings.get('tutorial', TUTORIAL))]
+                ]
+                await message.reply_photo(
+                    photo=VERIFY_IMG,
+                    caption=f"<b>👋 Hᴇʟʟᴏ {message.from_user.mention},\n\n⛔ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!\n\n👉 Pʟᴇᴀsᴇ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 16 Hᴏᴜʀs. Iᴛ ᴛᴀᴋᴇs ᴏɴʟʏ 10 sᴇᴄᴏɴᴅs.</b>",
+                    reply_markup=InlineKeyboardMarkup(v_btn),
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return # Pura process yahin ruk jayega jab tak verify na ho
         # -------------------------------------
+
 
     # Now, await the file details task
     files_ = await file_details_task
