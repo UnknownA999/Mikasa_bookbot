@@ -110,7 +110,8 @@ async def give_filter(client, message):
 
 
 # 2. PRIVATE (DM) SEARCH: Direct text AUR /search dono par kaam karega!
-@Client.on_message(filters.private & filters.text & filters.incoming)
+# Ab yeh filter /start ya kisi bhi command ko intercept nahi karega
+@Client.on_message(filters.private & filters.text & ~filters.command(["start", "help", "about", "premium", "settings"]) & filters.incoming)
 async def pm_text(bot, message):
     bot_id = bot.me.id
     content = message.text
