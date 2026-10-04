@@ -2064,6 +2064,12 @@ async def auto_filter(client, msg, spoll=False):
                     InlineKeyboardButton("Sᴇɴᴅ Aʟʟ", url=f"https://t.me/{temp.U_NAME}?start=allfiles_{message.chat.id}_{key}")
                 ])
             # --- END CATEGORY TAB INJECTION ---
+        else:
+            btn = []
+
+        if offset != "":
+            req = message.from_user.id if message.from_user else 0
+
             btn.insert(1 if (is_initial_search and (media_count > 0 or book_count > 0)) else 0,
                        [
                            InlineKeyboardButton(
