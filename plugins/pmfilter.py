@@ -110,14 +110,15 @@ async def give_filter(client, message):
 
 
 # 2. PRIVATE (DM) SEARCH: Direct text AUR /search dono par kaam karega!
-# Yeh filter sirf un messages ko pakdega jo "/" se start NAHI hote, ya sirf "/search" hain
-@Client.on_message(filters.private & filters.text & filters.incoming)
+# 🔥 STRICT FILTER: Yeh function ab KISI BHI COMMAND ko touch nahi karega (only catches normal text & /search)
+@Client.on_message(filters.private & filters.text & ~filters.command(["start", "help", "about", "settings", "premium", "my_profile", "top_search", "trendlist", "pm_search", "movie_update", "restart", "del_msg", "set_caption", "set_tutorial", "set_shortner", "set_time", "details", "verify", "set_fsub", "resetallgroup", "trial_reset", "smart_clean", "need", "requests", "addreq", "delreq", "report", "send", "deletefiles"]) & filters.incoming)
 async def pm_text(bot, message):
     bot_id = bot.me.id
     content = message.text
     user = message.from_user.first_name
     user_id = message.from_user.id
 
+    # Sirf /search ko allow karenge as text search
     if content.startswith("/"):
         if content.lower().startswith(("/search", "/s ")):
             parts = content.split(" ", 1)
@@ -126,7 +127,8 @@ async def pm_text(bot, message):
             content = parts[1].strip()
             message.text = content
         else:
-            return # Sab commands ko ignore karega (including /start), taaki commands.py unko handle kar sake
+            # Baaki koi command aaye jo list mein nahi hai, toh return taaki wo ignore ho
+            return 
 
     if content.startswith("#"):
         return
@@ -146,12 +148,13 @@ async def pm_text(bot, message):
             await message.reply_text(
                 text=(
                     f"<b>👋 ʜᴇʏ {user},\n\n"
-                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔𝒆𝒂𝒓𝒄𝒉 𝒇𝒐𝒓 𝒃𝒐𝒐𝒌𝒔, 𝒎𝒐𝒗𝒊𝒆𝒔 & 𝒂𝒏𝒊𝒎𝒆 𝒊𝒏 𝒐𝒖𝒓 𝑮𝒓𝒐𝒖𝒑!</b>"
+                    "📚 𝒀𝒐𝒖 𝒄𝒂𝒏 𝒔ᴇᴀʀᴄ𝒉 ꜰᴏʀ ʙᴏᴏᴋꜱ, ᴍᴏᴠɪᴇꜱ & ᴀɴɪᴍᴇ ɪɴ ᴏᴜʀ ɢʀᴏᴜᴘ!</b>"
                 ),
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 ᴊᴏɪɴ ɢʀᴏᴜᴘ ", url=GRP_LNK)]])
             )
     except Exception:
         pass
+
 
 @Client.on_message(filters.command("clean_duplicates") & filters.user(ADMINS))
 async def clean_duplicates(client, message):
