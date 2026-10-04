@@ -217,7 +217,7 @@ async def start(client, message):
     data = message.command[1]
 
     # ════════════════════════════════════════════
-    # 1. VERIFICATION COMPLETION CHECK
+    # 1. VERIFICATION COMPLETION GATE
     # ════════════════════════════════════════════
     if data.startswith("verify_"):
         try:
@@ -227,14 +227,15 @@ async def start(client, message):
             
             await db.update_verify_status(message.from_user.id)
             await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access for the next 16 hours. Enjoy! ✨")
-            data = actual_data 
+            data = actual_data # Ab data wapas original link ban gaya (e.g., batch_34_35)
         except Exception as e:
-            return await message.reply_text("❌ Verification Error! Please try again.")
+            return await message.reply_text(f"❌ Verification Error: {e}")
 
     # ════════════════════════════════════════════
-    # 2. UNIVERSAL VERIFICATION GATE (Stops Batch, AllFiles & Single)
+    # 2. UNIVERSAL VERIFICATION CHECK
     # ════════════════════════════════════════════
-    if data.startswith(("file_", "allfiles_", "batch_")):
+    # Yeh code single aur batch dono ko block karega
+    if data.startswith("file_") or data.startswith("allfiles_") or data.startswith("batch_"):
         try:
             grp_id = int(data.split("_")[1]) if not data.startswith("batch_") else 0
         except:
@@ -242,29 +243,29 @@ async def start(client, message):
             
         settings = await get_settings(grp_id) if grp_id else {}
         
+        # Checking IS_VERIFY from database and environment
         if settings.get('is_verify', IS_VERIFY) and not await db.has_premium_access(message.from_user.id):
             is_verified = await db.check_verify_status(message.from_user.id)
             if not is_verified:
                 verify_token = str(random.randint(100000, 999999))
                 v_link = f"https://t.me/{temp.U_NAME}?start=verify_{message.from_user.id}_{verify_token}_{data}"
                 
-                # 🛑 SHORTLINK API CRASH PROTECTOR 🛑
+                # API Crash Protector
                 try:
                     short_link = await get_shortlink(v_link, grp_id)
                 except Exception as e:
-                    return await message.reply_text(f"⚠️ **Shortener API Down!**\n\nTumhara URL shortener (`{settings.get('shortner', SHORTENER_WEBSITE)}`) sahi se respond nahi kar raha ya API key galat hai.\n\n**Admin Error Log:** `{e}`")
+                    return await message.reply_text(f"⚠️ **Shortener API Down!**\nError: `{e}`")
                 
                 v_btn = [
                     [InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ", url=short_link)],
                     [InlineKeyboardButton("❓ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ", url=settings.get('tutorial', TUTORIAL))]
                 ]
-                await message.reply_photo(
+                return await message.reply_photo(
                     photo=VERIFY_IMG,
                     caption=f"<b>👋 Hᴇʟʟᴏ {message.from_user.mention},\n\n⛔ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!\n\n👉 Pʟᴇᴀsᴇ ᴠᴇʀɪꜰʏ ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 16 Hᴏᴜʀs. Iᴛ ᴛᴀᴋᴇs ᴏɴʟʏ 10 sᴇᴄᴏɴᴅs.</b>",
                     reply_markup=InlineKeyboardMarkup(v_btn),
                     parse_mode=enums.ParseMode.HTML
                 )
-                return # 🛑 YAHAN EXECUTION RUK JAYEGI JAB TAK VERIFY NA HO
 
     # ════════════════════════════════════════════
     # 3. BATCH FILE DELIVERY 
@@ -300,6 +301,7 @@ async def start(client, message):
             return
         except Exception as e:
             return await message.reply(f"❌ **Error processing batch:** {e}")
+
 
     # ════════════════════════════════════════════
     # 4. FETCH FILE DETAILS FOR SINGLE FILES
