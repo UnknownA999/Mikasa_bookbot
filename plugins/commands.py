@@ -213,154 +213,63 @@ async def start(client, message):
         )
         return  
     
-    # --- BATCH VERIFICATION RECEIVER ---
 
-
-    # --- BATCH DELIVERY & VERIFICATION CHECK ---
-    if len(message.command) == 2 and message.command[1].startswith('batch_'):
-        try:
-            _, start_id, end_id = message.command[1].split("_")
-            start_id, end_id = int(start_id), int(end_id)
-            target_channel = -1003782307099 # Your Data Media Channel
-            
-            status_msg = await message.reply("🚀 **Sending your files, please wait...**")
-            
-            # List to keep track of the files we send
-            sent_messages = []
-            
-            for msg_id in range(start_id, end_id + 1):
-                try:
-                    msg = await client.copy_message(
-                        chat_id=message.from_user.id,
-                        from_chat_id=target_channel,
-                        message_id=msg_id
-                    )
-                    sent_messages.append(msg)
-                    await asyncio.sleep(0.5) 
-                except Exception:
-                    pass 
-            
-            await status_msg.delete()
-            
-            if sent_messages:
-                k = await client.send_message(
-                    chat_id=message.from_user.id, 
-                    text=script.DEL_MSG.format(get_time(DELETE_TIME)), 
-                    parse_mode=enums.ParseMode.HTML
-                )
-                await asyncio.sleep(DELETE_TIME)
-                for msg in sent_messages:
-                    try:
-                        await msg.delete()
-                    except:
-                        pass
-                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄꜱᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
-            return
-        except Exception as e:
-            return await message.reply(f"❌ **Error processing batch:** {e}")
-
-
-    
     data = message.command[1]
 
     # ════════════════════════════════════════════
-    # 🟢 VERIFICATION COMPLETION LOGIC (STOP LOOP)
+    # 1. VERIFICATION COMPLETION CHECK
     # ════════════════════════════════════════════
-    if data.startswith("notcopy") or data.startswith("sendall"):
+    if data.startswith("notcopy") or data.startswith("sendall") or data.startswith("verify_"):
         try:
-            _, req_user_id, verify_id, file_or_key = data.split("_", 3)
+            parts = data.split("_", 3)
+            req_user_id = parts[1]
             if str(message.from_user.id) != str(req_user_id):
                 return await message.reply_text("⚠️ **This link is not for you!**")
             
-            # Approve User Verification in Database
-            try:
-                await db.update_verify_status(message.from_user.id)
-            except Exception as e:
-                print(f"DB Error: {e}")
-                await message.reply_text(f"⚠️ Debug Error: {e}")
-
+            await db.update_verify_status(message.from_user.id)
+            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited access to all files for the next 16 hours. Enjoy! ✨")
             
-            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited direct access to all books for the next 16 hours. Enjoy! ✨")
-            
-            # Change data to deliver the actual file silently!
-            data = f"allfiles_0_{file_or_key}" if data.startswith("sendall") else f"file_0_{file_or_key}"
+            # Puraani command restore karna (taaki verify hone ke baad file khud aa jaye)
+            if data.startswith("sendall"):
+                data = f"allfiles_0_{parts[3]}"
+            elif data.startswith("notcopy"):
+                data = f"file_0_{parts[3]}"
+            else:
+                data = parts[3]
         except Exception as e:
-            print(f"Verify Error: {e}")
-            return await message.reply_text("❌ Verification Error! Please try again.")
+            return await message.reply_text(f"❌ Verification Error! {e}")
 
-    try:
-        _, grp_id, file_id = data.split("_", 2)
-        grp_id = int(grp_id)
-    except:
-        _, grp_id, file_id = "", 0, data
-
-    # Fetch file details concurrently with user checks
-    file_details_task = asyncio.create_task(get_file_details(file_id))
-
-
-    if not await db.has_premium_access(message.from_user.id): 
-        try:
-            btn = []
-            chat = int(data.split("_", 2)[1])
-            settings      = await get_settings(chat)
-            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
-
-            if fsub_channels:
-                btn += await is_subscribed(client, message.from_user.id, fsub_channels)
-            if AUTH_REQ_CHANNELS:
-                btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
-            if btn:
-                if len(message.command) > 1 and "_" in message.command[1]:
-                    kk, file_id = message.command[1].split("_", 1)
-                    btn.append([
-                        InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
-                    ])
-                    reply_markup = InlineKeyboardMarkup(btn)
-                photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
-                caption = (
-                    f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
-                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
-                    "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
-                )
-                await message.reply_photo(
-                    photo=photo,
-                    caption=caption,
-                    reply_markup=reply_markup,
-                    parse_mode=enums.ParseMode.HTML
-                )
-                return
-
-        except Exception as e:
-            await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
-            logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
-
-        # ---> 16-HOUR VERIFICATION SYSTEM <---
-        settings = await get_settings(chat)
-        if settings.get('is_verify', IS_VERIFY):
+    # ════════════════════════════════════════════
+    # 2. UNIVERSAL VERIFICATION GATE (Stops Batch, AllFiles & Single Files)
+    # ════════════════════════════════════════════
+    if data.startswith(("file_", "allfiles_", "batch_")):
+        if not await db.has_premium_access(message.from_user.id):
             user_verified = await db.is_user_verified(message.from_user.id)
-            time_expired = await db.use_second_shortener(message.from_user.id, 57600) # 16 Hours
-
+            time_expired = await db.use_second_shortener(message.from_user.id, 57600) # 16 Hours Check
+            
             if not user_verified or time_expired:
                 verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
                 await db.create_verify_id(message.from_user.id, verify_id)
-                temp.VERIFICATIONS[message.from_user.id] = chat
-
-                # Link generation for Batch or Single file
-                if data.startswith("allfiles"):
-                    key = data.split('_', 2)[2] if len(data.split('_')) > 2 else file_id
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{key}"
+                temp.VERIFICATIONS[message.from_user.id] = message.chat.id
+                
+                # Check link type to append correct prefix
+                if data.startswith("allfiles_") or data.startswith("batch_"):
+                    # Batch / Send All ke liye
+                    actual_key = data.split("_", 2)[2] if len(data.split("_")) > 2 else data
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{actual_key}"
                 else:
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{file_id}"
+                    # Single File ke liye
+                    actual_file_id = data.split("_", 2)[2] if len(data.split("_")) > 2 else data
+                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{actual_file_id}"
                 
                 try:
-                    verify = await get_shortlink(verify_url, chat, False, False)
-                except Exception as e:
-                    print(f"Shortlink Error: {e}")
+                    verify = await get_shortlink(verify_url, message.chat.id, False, False)
+                except Exception:
                     verify = verify_url
                     
                 buttons = [
                     [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=settings.get('tutorial', TUTORIAL))],
+                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
                     [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", callback_data="premium_info")]
                 ]
                 
@@ -370,13 +279,79 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(buttons),
                     parse_mode=enums.ParseMode.HTML
                 )
+                return # 🛑 ROK DO! Jab tak verify nahi hoga execution yahi ruk jayegi.
+
+    # ════════════════════════════════════════════
+    # 3. FORCE SUB CHECK (Executed only if verified)
+    # ════════════════════════════════════════════
+    if not await db.has_premium_access(message.from_user.id): 
+        try:
+            btn = []
+            chat = int(data.split("_", 2)[1]) if "_" in data else message.chat.id
+            settings = await get_settings(chat)
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
+
+            if fsub_channels:
+                btn += await is_subscribed(client, message.from_user.id, fsub_channels)
+            if AUTH_REQ_CHANNELS:
+                btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+            if btn:
+                if "_" in data:
+                    kk, file_id = data.split("_", 1)
+                    btn.append([InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")])
+                reply_markup = InlineKeyboardMarkup(btn)
+                await message.reply_photo(
+                    photo=random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg",
+                    caption=f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.",
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML
+                )
                 return
-        # -------------------------------------
+        except Exception as e:
+            logger.error(f"Force Sub Error: {e}")
 
-    # Now, await the file details task
+    # ════════════════════════════════════════════
+    # 4. BATCH DELIVERY (Executes only if Verified and Subscribed)
+    # ════════════════════════════════════════════
+    if data.startswith('batch_'):
+        try:
+            _, start_id, end_id = data.split("_")
+            start_id, end_id = int(start_id), int(end_id)
+            target_channel = -1003782307099 # Your Data Media Channel
+            
+            status_msg = await message.reply("🚀 **Sending your files, please wait...**")
+            sent_messages = []
+            for msg_id in range(start_id, end_id + 1):
+                try:
+                    msg = await client.copy_message(chat_id=message.from_user.id, from_chat_id=target_channel, message_id=msg_id)
+                    sent_messages.append(msg)
+                    await asyncio.sleep(0.5) 
+                except: pass 
+            
+            await status_msg.delete()
+            if sent_messages:
+                k = await client.send_message(chat_id=message.from_user.id, text=script.DEL_MSG.format(get_time(DELETE_TIME)), parse_mode=enums.ParseMode.HTML)
+                await asyncio.sleep(DELETE_TIME)
+                for msg in sent_messages:
+                    try: await msg.delete()
+                    except: pass
+                await k.edit_text("<b>ʏᴏᴜʀ ᴀʟʟ ᴠɪᴅᴇᴏꜱ/ꜰɪʟᴇꜱ ᴀʀᴇ ᴅᴇʟᴇᴛᴇᴅ ꜱᴜᴄꜱᴇꜱꜱꜰᴜʟʟʏ !\nᴋɪɴᴅʟʏ ꜱᴇᴀʀᴄʜ ᴀɢᴀɪɴ</b>")
+            return
+        except Exception as e:
+            return await message.reply(f"❌ **Error processing batch:** {e}")
+
+    # ════════════════════════════════════════════
+    # 5. FETCH FILE DETAILS FOR SINGLE FILES AND ALLFILES
+    # ════════════════════════════════════════════
+    try:
+        _, grp_id, file_id = data.split("_", 2)
+        grp_id = int(grp_id)
+    except:
+        _, grp_id, file_id = "", 0, data
+
+    file_details_task = asyncio.create_task(get_file_details(file_id))
     files_ = await file_details_task
-
-
+            
 
 
     if data.startswith("allfiles"):
