@@ -219,67 +219,10 @@ async def start(client, message):
     # ════════════════════════════════════════════
     # 1. VERIFICATION COMPLETION CHECK
     # ════════════════════════════════════════════
-    if data.startswith("notcopy") or data.startswith("sendall") or data.startswith("verify_"):
-        try:
-            parts = data.split("_", 3)
-            req_user_id = parts[1]
-            if str(message.from_user.id) != str(req_user_id):
-                return await message.reply_text("⚠️ **This link is not for you!**")
-            
-            await db.update_verify_status(message.from_user.id)
-            await message.reply_text("✅ **Verification Completed!**\n\nYou now have unlimited access to all files for the next 16 hours. Enjoy! ✨")
-            
-            # Puraani command restore karna (taaki verify hone ke baad file khud aa jaye)
-            if data.startswith("sendall"):
-                data = f"allfiles_0_{parts[3]}"
-            elif data.startswith("notcopy"):
-                data = f"file_0_{parts[3]}"
-            else:
-                data = parts[3]
-        except Exception as e:
-            return await message.reply_text(f"❌ Verification Error! {e}")
 
     # ════════════════════════════════════════════
     # 2. UNIVERSAL VERIFICATION GATE (Stops Batch, AllFiles & Single Files)
     # ════════════════════════════════════════════
-    if data.startswith(("file_", "allfiles_", "batch_")):
-        if not await db.has_premium_access(message.from_user.id):
-            user_verified = await db.is_user_verified(message.from_user.id)
-            time_expired = await db.use_second_shortener(message.from_user.id, 57600) # 16 Hours Check
-            
-            if not user_verified or time_expired:
-                verify_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
-                await db.create_verify_id(message.from_user.id, verify_id)
-                temp.VERIFICATIONS[message.from_user.id] = message.chat.id
-                
-                # Check link type to append correct prefix
-                if data.startswith("allfiles_") or data.startswith("batch_"):
-                    # Batch / Send All ke liye
-                    actual_key = data.split("_", 2)[2] if len(data.split("_")) > 2 else data
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=sendall_{message.from_user.id}_{verify_id}_{actual_key}"
-                else:
-                    # Single File ke liye
-                    actual_file_id = data.split("_", 2)[2] if len(data.split("_")) > 2 else data
-                    verify_url = f"https://telegram.me/{temp.U_NAME}?start=notcopy_{message.from_user.id}_{verify_id}_{actual_file_id}"
-                
-                try:
-                    verify = await get_shortlink(verify_url, message.chat.id, False, False)
-                except Exception:
-                    verify = verify_url
-                    
-                buttons = [
-                    [InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)],
-                    [InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=TUTORIAL)],
-                    [InlineKeyboardButton(text="⭐ GO AD-FREE / BUY PREMIUM ⭐", callback_data="premium_info")]
-                ]
-                
-                await message.reply_photo(
-                    photo=VERIFY_IMG,
-                    caption=f"📌 **{message.from_user.mention}, ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ!**\n\nᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ 'ᴠᴇʀɪꜰʏ' ᴛᴏ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ **16 ʜᴏᴜʀꜱ**.",
-                    reply_markup=InlineKeyboardMarkup(buttons),
-                    parse_mode=enums.ParseMode.HTML
-                )
-                return # 🛑 ROK DO! Jab tak verify nahi hoga execution yahi ruk jayegi.
 
     # ════════════════════════════════════════════
     # 3. FORCE SUB CHECK (Executed only if verified)
