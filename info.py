@@ -150,7 +150,16 @@ MAX_B_TN = environ.get("MAX_B_TN", "5") # Maximum number of buttons in a row (de
 PORT = int(environ.get("PORT", "8080"))  # Port for the web server (default: 8080)
 MSG_ALRT = environ.get('MSG_ALRT', 'Share & Support Us ♥️') # Alert message for users
 DELETE_TIME = int(environ.get("DELETE_TIME", "300"))  #  deletion time in seconds (default: 5 minutes). Adjust as per your needs.
-CUSTOM_FILE_CAPTION = environ.get("CUSTOM_FILE_CAPTION", f"{script.CAPTION}")   # Custom caption for files
+CUSTOM_FILE_CAPTION = environ.get(
+    "CUSTOM_FILE_CAPTION", 
+    "<b>{file_name}</b>\n\n"
+    "💾 <b>Size:</b> {file_size}\n"
+    "💿 <b>Format:</b> {quality}\n"
+    "📚 <b>Volume/Season:</b> {season}\n\n"
+    "⚠️ <b>ᴘʟᴇᴀꜱᴇ ꜰᴏʀᴡᴀʀᴅ ᴛʜɪꜱ ꜰɪʟᴇ ᴛᴏ ꜱᴏᴍᴇᴡʜᴇʀᴇ ᴇʟꜱᴇ & ꜱᴛᴀʀᴛ ᴡᴀᴛᴄʜɪɴɢ/ʀᴇᴀᴅɪɴɢ ᴛʜᴇʀᴇ!</b>\n\n"
+    "💡 <i>Yᴏᴜ ᴄᴀɴ sᴇᴀʀᴄʜ Mᴏᴠɪᴇs, Aɴɪᴍᴇ, Dʀᴀᴍᴀ, Wᴇʙ-Sᴇʀɪᴇs & Bᴏᴏᴋs. Wᴇ ᴘʀᴏᴠɪᴅᴇ ᴇᴠᴇʀʏᴛʜɪɴɢ! Iғ ʏᴏᴜ ᴅᴏɴ'ᴛ ғɪɴᴅ ᴡʜᴀᴛ ʏᴏᴜ ɴᴇᴇᴅ, ᴛʜᴇɴ Rᴇǫᴜᴇsᴛ Us 😀</i>"
+)
+   # Custom caption for files
 BATCH_FILE_CAPTION = environ.get("BATCH_FILE_CAPTION", CUSTOM_FILE_CAPTION) # Custom caption for batch files
 IMDB_TEMPLATE = environ.get("IMDB_TEMPLATE", f"{script.IMDB_TEMPLATE_TXT}")     # Custom IMDB template 
 MAX_LIST_ELM = environ.get("MAX_LIST_ELM", None) # Maximum number of elements in a list (default: None, no limit)
