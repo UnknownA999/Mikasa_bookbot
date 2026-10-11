@@ -20,7 +20,7 @@ from plugins import web_server, check_expired_premium, keep_alive
 from dreamxbotz.Bot import dreamxbotz
 from dreamxbotz.util.keepalive import ping_server
 from dreamxbotz.Bot.clients import initialize_clients
-from auto_reminder import start_reminder_loop
+from plugins.auto_reminder import start_reminder_loop
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 500_000_000
 
