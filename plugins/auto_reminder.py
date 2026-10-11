@@ -20,7 +20,7 @@ REMINDER_MESSAGES = [
 # Interval set karo (Seconds mein)
 # Example: 3 Days = 3 * 24 * 60 * 60 = 259200 seconds
 # Abhi ke liye maine 3 din (259200) set kiya hai. Test karne ke liye ise 60 (1 min) kar sakte ho.
-INTERVAL_SECONDS = 60 
+INTERVAL_SECONDS = 259200
 
 async def start_reminder_loop(client: Client):
     logger.info("Auto-Reminder system started in background!")
