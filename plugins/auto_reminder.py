@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 # Tum yahan apne hisaab se jitne chaho reminders add kar sakte ho!
 REMINDER_MESSAGES = [
     "🍿 <b>Weekend is here!</b> Need something to watch?\n\nSearch for any Movie, Web Series, or K-Drama right now!",
-    "📚 <b>Boring day?</b> Dive into a new world!\n\nSearch for your favorite Novels, Manga, or Academic Books in our library.",
-    "🎬 <b>Missed the latest releases?</b>\n\nWe've got them all. Just type the name of the movie or show and enjoy!",
-    "✨ <b>Did you know?</b>\n\nWe have a massive collection of Anime and TV Shows. Send a name to start searching!"
+    "📚 <b>Boring day?</b> Dive into a new world!\n\nSearch for your favorite Novels, or Academic Books in our library.",
+    "🎬 <b>Missed the latest releases?</b>\n\nWe've got them all. Just type the name of the movie or show or even novels and enjoy!",
+    "✨ <b>Did you know?</b>\n\nWe have a massive collection of Anime,drama, movies webseries and TV Shows. Send a name to start searching!"
 ]
 
 # Interval set karo (Seconds mein)
