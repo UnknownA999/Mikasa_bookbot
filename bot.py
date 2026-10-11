@@ -20,6 +20,7 @@ from plugins import web_server, check_expired_premium, keep_alive
 from dreamxbotz.Bot import dreamxbotz
 from dreamxbotz.util.keepalive import ping_server
 from dreamxbotz.Bot.clients import initialize_clients
+from auto_reminder import start_reminder_loop
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 500_000_000
 
@@ -94,7 +95,11 @@ async def dreamxbotz_start():
     #print("📚 Starting Background Book Scraper...")
     #asyncio.create_task(background_book_scraper(dreamxbotz, db))
     
+    print("⏰ Starting Auto-Reminder Loop...")
+    asyncio.create_task(start_reminder_loop(dreamxbotz))
+    
     await idle()
+
 
     
 if __name__ == '__main__':
