@@ -241,7 +241,10 @@ async def start(client, message):
     if not await db.has_premium_access(message.from_user.id): 
         try:
             btn = []
-            chat = int(data.split("_", 2)[1]) if "_" in data else message.chat.id
+            if "_" in data and data.split("_", 2)[1].lstrip('-').isdigit():
+                chat = int(data.split("_", 2)[1])
+            else:
+                chat = message.chat.id
             settings = await get_settings(chat)
             fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
 
