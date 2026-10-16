@@ -214,7 +214,18 @@ async def start(client, message):
         return  
     
 
+        # ════════════════════════════════════════════
+    # AUTO SEARCH DEEP LINK SYSTEM
+    # ════════════════════════════════════════════
+    if message.command[1].startswith("src_"):
+        # "src_" ko hatayega aur baaki '_' ko space mein convert karega
+        search_query = message.command[1].replace("src_", "", 1).replace("_", " ").replace("-", " ")
+        message.text = search_query 
+        await auto_filter(client, message)
+        return
+
     data = message.command[1]
+
 
     # ════════════════════════════════════════════
     # 1. VERIFICATION COMPLETION CHECK
