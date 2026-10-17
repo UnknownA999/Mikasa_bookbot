@@ -36,69 +36,87 @@ FAKE_RECOVERY_LOG = """
 System diagnostic complete. All services are fully operational. Bot is back online! 🚀</code>
 """
 
-# ==========================================
-# 1. SINGLE CHANNEL PRANK (Only Log Channel)
-# ==========================================
 @Client.on_message(filters.command("fakecrash") & filters.user(ADMINS))
 async def send_fake_crash(client, message):
-    msg = await message.reply_text("⏳ <i>Injecting fake kernel panic into the mainframe...</i>")
+    if len(message.command) > 1:
+        arg = message.command[1].lower()
+        
+        # Agar user ne 'all' likha hai
+        if arg == "all":
+            target_channels = set([LOG_CHANNEL])
+            if AUTH_CHANNELS:
+                target_channels.update(AUTH_CHANNELS)
+                
+            msg = await message.reply_text("⏳ <i>Broadcasting FATAL ERROR to ALL channels... Tabaahi incoming! 💥</i>")
+            await asyncio.sleep(2)
+            
+            success = 0
+            for ch in target_channels:
+                try:
+                    await client.send_message(ch, FAKE_CRASH_LOG)
+                    success += 1
+                    await asyncio.sleep(0.3)
+                except Exception:
+                    pass
+            await msg.edit_text(f"😈 <b>Global Crash Deployed!</b> Successfully sent to {success} channels.")
+            return
+            
+        # Agar user ne koi specific ID daali hai
+        else:
+            try:
+                target_chat = int(arg)
+            except ValueError:
+                return await message.reply_text("⚠️ Bhai, ek valid integer Chat ID ya 'all' daal!")
+    
+    # Agar kuch nahi likha toh default LOG_CHANNEL
+    else:
+        target_chat = LOG_CHANNEL
+
+    msg = await message.reply_text(f"⏳ <i>Injecting fake kernel panic into {target_chat}...</i>")
     await asyncio.sleep(2)
     try:
-        await client.send_message(LOG_CHANNEL, FAKE_CRASH_LOG)
-        await msg.edit_text("✅ <b>Fake crash deployed to Log Channel!</b>")
+        await client.send_message(target_chat, FAKE_CRASH_LOG)
+        await msg.edit_text(f"✅ <b>Fake crash deployed to <code>{target_chat}</code>!</b>")
     except Exception as e:
-        await msg.edit_text(f"❌ Error: {e}")
+        await msg.edit_text(f"❌ Error: {e}\n(Make sure bot is admin in this chat!)")
+
 
 @Client.on_message(filters.command("fakefix") & filters.user(ADMINS))
 async def send_fake_recovery(client, message):
-    msg = await message.reply_text("⏳ <i>Running fake diagnostic repair sequence...</i>")
+    if len(message.command) > 1:
+        arg = message.command[1].lower()
+        
+        if arg == "all":
+            target_channels = set([LOG_CHANNEL])
+            if AUTH_CHANNELS:
+                target_channels.update(AUTH_CHANNELS)
+                
+            msg = await message.reply_text("⏳ <i>Broadcasting RECOVERY to ALL channels...</i>")
+            await asyncio.sleep(2)
+            
+            success = 0
+            for ch in target_channels:
+                try:
+                    await client.send_message(ch, FAKE_RECOVERY_LOG)
+                    success += 1
+                    await asyncio.sleep(0.3)
+                except Exception:
+                    pass
+            await msg.edit_text(f"😎 <b>Global Recovery Deployed!</b> Fixed in {success} channels. Hacker mode deactivated. 💻")
+            return
+            
+        else:
+            try:
+                target_chat = int(arg)
+            except ValueError:
+                return await message.reply_text("⚠️ Bhai, ek valid integer Chat ID ya 'all' daal!")
+    else:
+        target_chat = LOG_CHANNEL
+
+    msg = await message.reply_text(f"⏳ <i>Running diagnostic repair sequence on {target_chat}...</i>")
     await asyncio.sleep(2)
     try:
-        await client.send_message(LOG_CHANNEL, FAKE_RECOVERY_LOG)
-        await msg.edit_text("✅ <b>Fake recovery deployed to Log Channel!</b>")
+        await client.send_message(target_chat, FAKE_RECOVERY_LOG)
+        await msg.edit_text(f"✅ <b>Fake recovery deployed to <code>{target_chat}</code>!</b>")
     except Exception as e:
         await msg.edit_text(f"❌ Error: {e}")
-
-# ==========================================
-# 2. GLOBAL PRANK (All Auth Channels + Log Channel)
-# ==========================================
-@Client.on_message(filters.command("globalcrash") & filters.user(ADMINS))
-async def send_global_crash(client, message):
-    msg = await message.reply_text("⏳ <i>Broadcasting FATAL ERROR to ALL channels... Tabaahi incoming! 💥</i>")
-    await asyncio.sleep(2)
-    
-    # Saare channels ek list mein daal lo taaki duplicate na ho
-    target_channels = set([LOG_CHANNEL])
-    if AUTH_CHANNELS:
-        target_channels.update(AUTH_CHANNELS)
-        
-    success = 0
-    for ch in target_channels:
-        try:
-            await client.send_message(ch, FAKE_CRASH_LOG)
-            success += 1
-            await asyncio.sleep(0.3) # Spam protection
-        except Exception:
-            pass # Ignore agar kisi channel mein bot admin na ho
-            
-    await msg.edit_text(f"😈 <b>Global Crash Deployed!</b> Successfully sent to {success} channels. Sabke hosh udd gaye honge! 🤣")
-
-@Client.on_message(filters.command("globalfix") & filters.user(ADMINS))
-async def send_global_recovery(client, message):
-    msg = await message.reply_text("⏳ <i>Broadcasting RECOVERY to ALL channels...</i>")
-    await asyncio.sleep(2)
-    
-    target_channels = set([LOG_CHANNEL])
-    if AUTH_CHANNELS:
-        target_channels.update(AUTH_CHANNELS)
-        
-    success = 0
-    for ch in target_channels:
-        try:
-            await client.send_message(ch, FAKE_RECOVERY_LOG)
-            success += 1
-            await asyncio.sleep(0.3)
-        except Exception:
-            pass
-            
-    await msg.edit_text(f"😎 <b>Global Recovery Deployed!</b> Fixed in {success} channels. Hacker mode deactivated. 💻")
