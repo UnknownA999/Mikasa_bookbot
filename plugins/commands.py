@@ -7,6 +7,7 @@ import random
 import asyncio
 import string
 import pytz
+from shortener_gate import check_shortener_gate
 from .pmfilter import auto_filter 
 from Script import script
 from datetime import datetime
@@ -225,6 +226,12 @@ async def start(client, message):
         return
 
     data = message.command[1]
+
+    # Shortener Gate Check
+    is_allowed, data = await check_shortener_gate(client, message, data)
+    if not is_allowed:
+        return
+
 
 
     # ════════════════════════════════════════════
